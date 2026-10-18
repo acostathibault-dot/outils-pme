@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculateur de Point Mort : La date de votre liberté financière</title>
+    <meta name="description" content="Identifiez le jour précis de l'année où votre entreprise finit de payer ses factures et commence enfin à générer du bénéfice.">
+    <meta property="og:title" content="Calculateur de Point Mort : La date de votre liberté financière">
+    <meta property="og:description" content="Outil gratuit pour dirigeants de PME : calculez votre seuil de rentabilité et votre date de profit.">
+    <meta property="og:type" content="website">
+    <style>
+        :root {
+            --primary: #002147;
+            --accent: #0056b3;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+            --success: #10b981;
+        }
+
+        * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+        body { 
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            line-height: 1.5; 
+            color: var(--text); 
+            background-color: var(--bg); 
+            margin: 0; 
+            padding: 0;
+        }
+
+        .container { max-width: 800px; margin: 0 auto; padding: 2rem 1rem; }
+
+        header { text-align: center; margin-bottom: 3rem; }
+        h1 { color: var(--primary); font-size: 2.25rem; margin-bottom: 0.5rem; line-height: 1.2; }
+        .promise { font-size: 1.1rem; color: var(--text-light); max-width: 600px; margin: 0 auto; }
+
+        .card { 
+            background: var(--card); 
+            border-radius: 12px; 
+            padding: 2rem; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            margin-bottom: 2rem;
+        }
+
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+
+        .form-group { margin-bottom: 1.25rem; }
+        label { display: block; font-weight: 600; margin-bottom: 0.25rem; font-size: 0.95rem; }
+        .input-wrapper { position: relative; }
+        input { 
+            width: 100%; 
+            padding: 0.75rem; 
+            border: 1px solid var(--border); 
+            border-radius: 6px; 
+            font-size: 1rem; 
+            transition: border-color 0.2s;
+            background: #fff;
+        }
+        input:focus { outline: none; border-color: var(--accent); ring: 2px solid var(--accent); }
+        .help-text { font-size: 0.8rem; color: var(--text-light); margin-top: 0.4rem; display: block; line-height: 1.4; }
+
+        .results-main { text-align: center; padding: 2rem; background: #f1f5f9; border-radius: 8px; margin-bottom: 2rem; border: 1px solid var(--border); }
+        .date-display { font-size: 3rem; font-weight: 800; color: var(--primary); margin: 0.5rem 0; }
+        .interpretation { font-weight: 500; color: var(--accent); min-height: 3rem; }
+
+        .progress-container { background: #e2e8f0; height: 12px; border-radius: 6px; margin: 1.5rem 0; overflow: hidden; }
+        #progress-bar { height: 100%; background: var(--primary); width: 0%; transition: width 0.5s ease-out; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem; }
+        .stat-card { padding: 1rem; border: 1px solid var(--border); border-radius: 8px; text-align: center; }
+        .stat-label { font-size: 0.85rem; color: var(--text-light); display: block; margin-bottom: 0.25rem; }
+        .stat-value { font-size: 1.1rem; font-weight: 700; color: var(--primary); }
+
+        .actions { display: flex; gap: 1rem; justify-content: center; margin-bottom: 2rem; }
+        button { 
+            padding: 0.75rem 1.5rem; 
+            border-radius: 6px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            transition: all 0.2s;
+            border: none;
+        }
+        .btn-reset { background: #e2e8f0; color: var(--text); }
+        .btn-reset:hover { background: #cbd5e1; }
+        .btn-copy { background: var(--primary); color: white; }
+        .btn-copy:hover { background: #001a38; }
+
+        .info-section { margin-top: 3rem; border-top: 1px solid var(--border); padding-top: 2rem; }
+        .info-section h2 { font-size: 1.25rem; color: var(--primary); margin-bottom: 1rem; }
+        .info-section p, .info-section li { font-size: 0.95rem; color: var(--text-light); margin-bottom: 0.75rem; }
+        .error-box { background: #fef2f2; border: 1px solid #fee2e2; color: #991b1b; padding: 1rem; border-radius: 6px; margin-bottom: 1rem; display: none; }
+
+        footer { text-align: center; padding: 3rem 0; border-top: 1px solid var(--border); margin-top: 3rem; }
+        footer a { color: var(--accent); text-decoration: none; font-weight: 600; }
+        footer a:hover { text-decoration: underline; }
+
+        .formula { font-family: monospace; background: #f1f5f9; padding: 0.2rem 0.4rem; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Calculateur de Point Mort : La date de votre liberté financière</h1>
+        <p class="promise">Identifiez le jour précis de l'année où votre entreprise finit de payer ses factures et commence enfin à générer du bénéfice.</p>
+    </header>
+
+    <div class="card">
+        <div class="grid">
+            <div class="form-group">
+                <label for="ca">Chiffre d'affaires annuel prévu (HT) (€)</label>
+                <input type="number" id="ca" value="500000" step="1000">
+                <span class="help-text">Le montant total de vos ventes hors taxes estimé sur l'année.</span>
+            </div>
+            <div class="form-group">
+                <label for="variables">Achats et frais variables (HT) (€)</label>
+                <input type="number" id="variables" value="200000" step="1000">
+                <span class="help-text">Dépenses qui varient selon vos ventes : achats, matières, sous-traitance, commissions.</span>
+            </div>
+            <div class="form-group">
+                <label for="fixes">Frais fixes annuels (€)</label>
+                <input type="number" id="fixes" value="100000" step="1000">
+                <span class="help-text">Charges payées même sans vente : loyer, assurances, comptable, marketing, électricité.</span>
+            </div>
+            <div class="form-group">
+                <label for="salaires">Masse salariale totale (€)</label>
+                <input type="number" id="salaires" value="150000" step="1000">
+                <span class="help-text">Somme des salaires bruts et de l'ensemble des charges sociales pour l'année.</span>
+            </div>
+            <div class="form-group">
+                <label for="is">Taux d'impôt sur les sociétés (%)</label>
+                <input type="number" id="is" value="25" step="0.1">
+                <span class="help-text">En France : 15% jusqu'à 42 500 € de bénéfice, puis 25% au-delà.</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="error-msg" class="error-box"></div>
+
+    <div class="results-main">
+        <span class="stat-label">Votre date de rentabilité :</span>
+        <div id="res-date" class="date-display">-</div>
+        <p id="res-interpretation" class="interpretation">Saisissez vos données pour voir le résultat.</p>
+        
+        <div class="progress-container">
+            <div id="progress-bar"></div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-label">Seuil de Rentabilité (HT)</span>
+                <div id="res-sr" class="stat-value">-</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Bénéfice net annuel</span>
+                <div id="res-net" class="stat-value">-</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Marge sur coûts variables</span>
+                <div id="res-mcv" class="stat-value">-</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="actions">
+        <button class="btn-reset" onclick="resetForm()">Réinitialiser</button>
+        <button class="btn-copy" onclick="copyResults()">Copier le résultat</button>
+    </div>
+
+    <div class="info-section">
+        <h2>Comment c'est calculé ?</h2>
+        <ul>
+            <li><strong>Marge sur Coûts Variables (MCV) :</strong> Chiffre d'affaires - Achats et frais variables.</li>
+            <li><strong>Taux de Marge :</strong> MCV / Chiffre d'affaires.</li>
+            <li><strong>Seuil de Rentabilité (SR) :</strong> (Frais fixes + Masse salariale) / Taux de Marge.</li>
+            <li><strong>Point Mort (en jours) :</strong> (SR / Chiffre d'affaires) * 365 jours.</li>
+            <li><strong>Bénéfice Net :</strong> (CA - Variables - Fixes - Salaires) * (1 - Taux d'impôt / 100).</li>
+        </ul>
+
+        <h2>Erreur fréquente</h2>
+        <p>L'erreur la plus courante est de penser que l'on est rentable dès que le chiffre d'affaires dépasse les frais fixes. C'est faux car chaque vente génère elle-même des coûts (achats, transport, commissions). On ne devient rentable que lorsque la <strong>MARGE</strong> générée couvre les frais fixes.</p>
+
+        <h2>Limites du calcul</h2>
+        <p>Ce calcul repose sur une activité répartie de façon linéaire sur l'année. Si votre activité est saisonnière, la date réelle sera différente. De plus, ce calculateur mesure la rentabilité comptable, mais ne remplace pas un suivi de trésorerie (cash disponible).</p>
+        <p><em>Note : Cet outil est fourni à titre indicatif et ne remplace pas l'avis de votre expert-comptable.</em></p>
+    </div>
+
+    <footer>
+        Outil gratuit créé par <strong>Thibault Acosta-Mendez</strong><br>
+        <a href="https://www.linkedin.com/in/thibaultacosta-mendez" target="_blank" id="linkedin-link">Profil LinkedIn</a>
+    </footer>
+</div>
+
+<script>
+    const inputs = ['ca', 'variables', 'fixes', 'salaires', 'is'];
+    const fmtEuro = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
+    const fmtPct = new Intl.NumberFormat('fr-FR', { style: 'percent', minimumFractionDigits: 1 });
+    const fmtDate = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long' });
+
+    function calculate() {
+        const val = {};
+        inputs.forEach(id => val[id] = parseFloat(document.getElementById(id).value) || 0);
+        
+        const errorBox = document.getElementById('error-msg');
+        errorBox.style.display = 'none';
+
+        // Validation
+        if (val.ca <= 0) {
+            showError("Le chiffre d'affaires doit être supérieur à 0 pour calculer la rentabilité.");
+            return;
+        }
+        if (val.variables >= val.ca) {
+            showError("Vos frais variables sont supérieurs ou égaux à votre CA. Vous perdez de l'argent sur chaque vente, la rentabilité est impossible en l'état.");
+            return;
+        }
+
+        // Calculs
+        const mcv = val.ca - val.variables;
+        const tauxMarge = mcv / val.ca;
+        const chargesFixesTotales = val.fixes + val.salaires;
+        const sr = chargesFixesTotales / tauxMarge;
+        const jours = (sr / val.ca) * 365;
+        const beneficeBrut = val.ca - val.variables - chargesFixesTotales;
+        const beneficeNet = beneficeBrut > 0 ? beneficeBrut * (1 - val.is / 100) : beneficeBrut;
+
+        // Affichage
+        document.getElementById('res-sr').textContent = fmtEuro.format(sr);
+        document.getElementById('res-net').textContent = fmtEuro.format(beneficeNet);
+        document.getElementById('res-mcv').textContent = fmtPct.format(tauxMarge);
+
+        const progressBar = document.getElementById('progress-bar');
+        const dateDisplay = document.getElementById('res-date');
+        const interpDisplay = document.getElementById('res-interpretation');
+
+        if (jours > 365) {
+            dateDisplay.textContent = "Hors délai";
+            interpDisplay.textContent = "Votre entreprise n'atteint pas son seuil de rentabilité sur cette année. Il faut augmenter le CA ou réduire les charges.";
+            progressBar.style.width = "100%";
+            progressBar.style.backgroundColor = "#ef4444";
+        } else if (jours <= 0) {
+            dateDisplay.textContent = "1er Janvier";
+            interpDisplay.textContent = "Vous êtes rentable dès le premier jour de l'année !";
+            progressBar.style.width = "0%";
+            progressBar.style.backgroundColor = var(--success);
+        } else {
+            const dateRentabilite = new Date(2024, 0, 1); // Année non bissextile pour le standard
+            dateRentabilite.setDate(Math.ceil(jours) + 1);
+            dateDisplay.textContent = fmtDate.format(dateRentabilite);
+            
+            const percentYear = (jours / 365) * 100;
+            progressBar.style.width = percentYear + "%";
+            progressBar.style.backgroundColor = "var(--primary)";
+            
+            interpDisplay.textContent = `À partir du ${fmtDate.format(dateRentabilite)} au matin, chaque euro de marge gagné va directement dans votre poche.`;
+        }
+    }
+
+    function showError(msg) {
+        const errorBox = document.getElementById('error-msg');
+        errorBox.textContent = msg;
+        errorBox.style.display = 'block';
+        document.getElementById('res-date').textContent = "-";
+        document.getElementById('res-sr').textContent = "-";
+        document.getElementById('res-net').textContent = "-";
+        document.getElementById('res-mcv').textContent = "-";
+        document.getElementById('res-interpretation').textContent = "Calcul impossible.";
+        document.getElementById('progress-bar').style.width = "0%";
+    }
+
+    function resetForm() {
+        document.getElementById('ca').value = 500000;
+        document.getElementById('variables').value = 200000;
+        document.getElementById('fixes').value = 100000;
+        document.getElementById('salaires').value = 150000;
+        document.getElementById('is').value = 25;
+        calculate();
+    }
+
+    function copyResults() {
+        const date = document.getElementById('res-date').textContent;
+        const sr = document.getElementById('res-sr').textContent;
+        const net = document.getElementById('res-net').textContent;
+        const text = `Résultats de mon Point Mort :\n- Date de rentabilité : ${date}\n- Seuil de Rentabilité : ${sr}\n- Bénéfice net estimé : ${net}\nCalculé sur l'outil de Thibault Acosta-Mendez.`;
+        
+        navigator.clipboard.writeText(text).then(() => {
+            alert("Résultats copiés dans le presse-papier !");
+        });
+    }
+
+    // Listeners
+    inputs.forEach(id => {
+        document.getElementById(id).addEventListener('input', calculate);
+    });
+
+    // Initial calculation
+    calculate();
+</script>
+
+</body>
+</html>
