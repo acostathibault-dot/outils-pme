@@ -244,7 +244,7 @@
             dateDisplay.textContent = "1er Janvier";
             interpDisplay.textContent = "Vous êtes rentable dès le premier jour de l'année !";
             progressBar.style.width = "0%";
-            progressBar.style.backgroundColor = var(--success);
+            progressBar.style.backgroundColor = 'var(--success)';
         } else {
             const dateRentabilite = new Date(2024, 0, 1); // Année non bissextile pour le standard
             dateRentabilite.setDate(Math.ceil(jours) + 1);
