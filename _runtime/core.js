@@ -108,7 +108,7 @@ var OutilCore = (function () {
   function aujourdhui() { var d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
   function joursEntre(d1, d2) { d1 = date(d1); d2 = date(d2); if (!d1 || !d2) return null; return Math.round((Date.UTC(d2.getFullYear(), d2.getMonth(), d2.getDate()) - Date.UTC(d1.getFullYear(), d1.getMonth(), d1.getDate())) / 86400000); }
   function ajouterJours(d, n) { d = date(d); return d ? new Date(d.getFullYear(), d.getMonth(), d.getDate() + n) : null; }
-  function ajouterMois(d, n) { d = date(d); return d ? new Date(d.getFullYear(), d.getMonth() + n, Math.min(d.getDate(), 28)) : null; }
+  function ajouterMois(d, n) { d = date(d); if (!d) return null; var fin = new Date(d.getFullYear(), d.getMonth() + n + 1, 0).getDate(); return new Date(d.getFullYear(), d.getMonth() + n, Math.min(d.getDate(), fin)); }
   function debutMois(d) { d = date(d); return d ? new Date(d.getFullYear(), d.getMonth(), 1) : null; }
   function moisCle(d) { d = date(d); return d ? d.getFullYear() + '-' + (d.getMonth() < 9 ? '0' : '') + (d.getMonth() + 1) : ''; }
 
@@ -271,6 +271,15 @@ var OutilCore = (function () {
   }
 
 
+
+  /* Analyse d'une annonce BODACC de procédure collective : type de procédure et type de jugement. */
+  function analyserJugement(famille, nature) {
+    var t = normaliser((famille || '') + ' ' + (nature || ''));
+    var procedure = /liquidation/.test(t) ? 'liquidation' : (/redressement/.test(t) ? 'redressement' : (/sauvegarde/.test(t) ? 'sauvegarde' : (/retablissement/.test(t) ? 'rétablissement professionnel' : null)));
+    var type = /cloture/.test(t) ? 'clôture' : (/ouverture/.test(t) ? 'ouverture' : (/prononcant la liquidation|conversion/.test(t) ? 'conversion' : (/plan/.test(t) ? 'plan' : 'autre')));
+    return { procedure: procedure, type_jugement: type, procedure_en_cours: type !== 'clôture' };
+  }
+
   /* API simulée pour le mode démonstration et les tests automatiques (aucun appel réseau). */
   var apiDemo = {
     entreprise: function (s) {
@@ -281,13 +290,20 @@ var OutilCore = (function () {
     },
     bodacc: function (s) {
       s = siren(s); if (!s) return Promise.resolve([]);
-      if (/[37]$/.test(s)) return Promise.resolve([{ date: ajouterJours(aujourdhui(), -25), famille: 'collective', famille_libelle: 'Procédures collectives', nature: "Jugement d'ouverture d'une procédure de redressement judiciaire", tribunal: 'Tribunal de commerce de Lyon (démo)', nom: 'Entreprise démo ' + s.slice(-3), url: 'https://www.bodacc.fr/', procedure_collective: true }]);
-      return Promise.resolve([{ date: ajouterJours(aujourdhui(), -200), famille: 'dpc', famille_libelle: 'Dépôts des comptes', nature: '', tribunal: '', nom: 'Entreprise démo ' + s.slice(-3), url: 'https://www.bodacc.fr/', procedure_collective: false }]);
+      var nom = 'Entreprise démo ' + s.slice(-3), base = { tribunal: 'Tribunal de commerce de Lyon (démo)', nom: nom, url: 'https://www.bodacc.fr/' };
+      function annonce(jours, famille, libelle, nature) {
+        var j = analyserJugement(famille, nature);
+        return Object.assign({ date: ajouterJours(aujourdhui(), jours), date_jugement: ajouterJours(aujourdhui(), jours - 6), famille: famille, famille_libelle: libelle, nature: nature, procedure_collective: famille === 'collective' }, j, base);
+      }
+      if (/7$/.test(s)) return Promise.resolve([annonce(-25, 'collective', 'Procédures collectives', "Jugement d'ouverture d'une procédure de redressement judiciaire")]);
+      if (/3$/.test(s)) return Promise.resolve([annonce(-50, 'collective', 'Procédures collectives', "Jugement d'ouverture d'une procédure de liquidation judiciaire")]);
+      if (/9$/.test(s)) return Promise.resolve([annonce(-15, 'collective', 'Procédures collectives', "Jugement de clôture pour insuffisance d'actif"), annonce(-300, 'collective', 'Procédures collectives', "Jugement d'ouverture d'une procédure de liquidation judiciaire")]);
+      return Promise.resolve([annonce(-200, 'dpc', 'Dépôts des comptes', '')]);
     }
   };
 
   return {
-    apiDemo: apiDemo, normaliser: normaliser, num: num, date: date, siren: siren, iban: iban, texte: texte, convertir: convertir,
+    apiDemo: apiDemo, analyserJugement: analyserJugement, ajouterMois: ajouterMois, normaliser: normaliser, num: num, date: date, siren: siren, iban: iban, texte: texte, convertir: convertir,
     sirenValide: sirenValide, ibanValide: ibanValide, tvaIntracomFR: tvaIntracomFR,
     formatEuro: formatEuro, formatNombre: formatNombre, formatDate: formatDate,
     joursEntre: joursEntre, aujourdhui: aujourdhui, creerOutils: creerOutils,
