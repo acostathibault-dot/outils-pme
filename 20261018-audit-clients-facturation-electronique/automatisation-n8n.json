@@ -1,0 +1,404 @@
+{
+  "name": "Audit clients facturation électronique (automatique)",
+  "nodes": [
+    {
+      "name": "Planification",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 1 * *"
+            }
+          ]
+        }
+      },
+      "id": "06421977-0d7d-447f-aed5-8eb65b3919f9",
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "name": "⚙️ Réglages",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "07736c0e-a4a2-4abc-8a18-e5768a4fa4e4",
+              "name": "destinataires",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "7ec1e236-3cef-40cf-b42d-669ca0ced132",
+              "name": "expediteur",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "44f4ba1a-9f3b-4800-a21c-9cbe8256232f",
+              "name": "envoi",
+              "value": "nouveautés uniquement",
+              "type": "string"
+            },
+            {
+              "id": "a8190830-98ce-45f1-9939-8bf6ccbb016a",
+              "name": "historique_mois",
+              "value": 24,
+              "type": "number"
+            },
+            {
+              "id": "0b632d56-4867-4b95-8925-33e40b4a312e",
+              "name": "pennylane_url",
+              "value": "https://app.pennylane.com/api/external/v2",
+              "type": "string"
+            },
+            {
+              "id": "022b2f2c-5482-49a7-baa9-b8c7d23b5546",
+              "name": "ignorer_particuliers",
+              "value": "true",
+              "type": "string"
+            },
+            {
+              "id": "c4f4b953-a72d-4d92-9869-7815a58c1afc",
+              "name": "exiger_tva",
+              "value": "false",
+              "type": "string"
+            },
+            {
+              "id": "7445442d-1c18-4f0b-8b1a-b4a8e7513108",
+              "name": "seuil_alerte_taux_erreur",
+              "value": "10",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8fb41b47-bd9b-40a5-ab5b-875d688d522a",
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "name": "Pennylane · Clients",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "executeOnce": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "parameters": {
+        "url": "={{ $('⚙️ Réglages').first().json.pennylane_url }}/customers",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "100"
+            }
+          ]
+        },
+        "options": {
+          "pagination": {
+            "pagination": {
+              "paginationMode": "updateAParameterInEachRequest",
+              "parameters": {
+                "parameters": [
+                  {
+                    "type": "qs",
+                    "name": "cursor",
+                    "value": "={{ $response.body.next_cursor }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ !$response.body.has_more || !$response.body.next_cursor }}",
+              "limitPagesFetched": true,
+              "maxRequests": 200,
+              "requestInterval": 300
+            }
+          }
+        }
+      },
+      "id": "05a89703-815d-4b21-ba0a-73b04dbc8ced",
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "name": "SIREN à vérifier",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Liste des SIREN des clients et fournisseurs (300 au maximum) envoyés aux API publiques de l'État\nconst noeuds = [\"Pennylane · Clients\"];\nconst vus = {};\nnoeuds.forEach((n) => { let pages = []; try { pages = $(n).all(); } catch (e) { pages = []; } pages.forEach((p) => (p.json.items || []).forEach((t) => { const s = String(t.reg_no || '').replace(/\\D/g, ''); if (s.length === 9) vus[s] = true; })); });\nconst liste = Object.keys(vus).slice(0, 300);\nreturn (liste.length ? liste : ['000000000']).map((siren) => ({ json: { siren } }));"
+      },
+      "id": "2cf2e72f-cd56-4996-905f-13ef5d6f5fb4",
+      "position": [
+        720,
+        300
+      ]
+    },
+    {
+      "name": "API Recherche d'entreprises",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "parameters": {
+        "url": "={{ 'https://recherche-entreprises.api.gouv.fr/search?q=' + $('SIREN à vérifier').item.json.siren + '&per_page=1' }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 250
+            }
+          },
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "4eb6ce97-532a-4707-a1cc-f03e60f12af9",
+      "position": [
+        960,
+        300
+      ]
+    },
+    {
+      "name": "Analyser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// ════ Socle commun des mini-apps (ne pas modifier) ════\n/* Socle commun des mini-apps : fonctions pures, sans DOM (testables dans Node et n8n). */\nvar OutilCore = (function () {\n  'use strict';\n\n  function normaliser(s) {\n    return String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')\n      .replace(/[^a-z0-9]+/g, ' ').trim();\n  }\n\n  function estVide(v) { return v === undefined || v === null || (typeof v === 'string' && v.trim() === ''); }\n\n  function num(v) {\n    if (typeof v === 'number') return isFinite(v) ? v : null;\n    if (estVide(v)) return null;\n    var s = String(v).trim().replace(/[\\s  ]/g, '').replace(/[€$£]|EUR|HT|TTC/gi, '');\n    var negatif = /^\\(.*\\)$/.test(s) || /^-/.test(s) || /-$/.test(s);\n    s = s.replace(/[()+-]/g, '');\n    if (s.indexOf(',') > -1 && s.indexOf('.') > -1) {\n      if (s.lastIndexOf(',') > s.lastIndexOf('.')) s = s.replace(/\\./g, '').replace(',', '.');\n      else s = s.replace(/,/g, '');\n    } else if (s.indexOf(',') > -1) {\n      s = s.replace(',', '.');\n    } else if ((s.match(/\\./g) || []).length > 1) {\n      s = s.replace(/\\./g, '');\n    }\n    s = s.replace(/%$/, '');\n    if (!/^\\d*\\.?\\d+$/.test(s)) return null;\n    var n = parseFloat(s);\n    return isFinite(n) ? (negatif ? -n : n) : null;\n  }\n\n  function dateLocale(a, m, j) {\n    var d = new Date(a, m - 1, j);\n    return (d.getFullYear() === a && d.getMonth() === m - 1 && d.getDate() === j) ? d : null;\n  }\n\n  function date(v) {\n    if (v instanceof Date) return isNaN(v) ? null : new Date(v.getFullYear(), v.getMonth(), v.getDate());\n    if (estVide(v)) return null;\n    if (typeof v === 'number') {\n      if (v > 20000 && v < 80000) { var b = new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86400000); return dateLocale(b.getUTCFullYear(), b.getUTCMonth() + 1, b.getUTCDate()); }\n      return null;\n    }\n    var s = String(v).trim(), m;\n    if ((m = s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})/))) return dateLocale(+m[1], +m[2], +m[3]);\n    if ((m = s.match(/^(\\d{1,2})[\\/.\\-](\\d{1,2})[\\/.\\-](\\d{2,4})/))) {\n      var a = +m[3]; if (a < 100) a += 2000;\n      return dateLocale(a, +m[2], +m[1]);\n    }\n    var mois = { janv: 1, janvier: 1, fevr: 2, fevrier: 2, mars: 3, avr: 4, avril: 4, mai: 5, juin: 6, juil: 7, juillet: 7, aout: 8, sept: 9, septembre: 9, oct: 10, octobre: 10, nov: 11, novembre: 11, dec: 12, decembre: 12 };\n    if ((m = normaliser(s).match(/^(\\d{1,2}) ([a-z]+) (\\d{4})/)) && mois[m[2]]) return dateLocale(+m[3], mois[m[2]], +m[1]);\n    return null;\n  }\n\n  function siren(v) {\n    if (estVide(v)) return null;\n    var d = String(v).replace(/\\D/g, '');\n    if (d.length === 11 && /^FR/i.test(String(v).replace(/\\s/g, ''))) d = d.slice(2);\n    if (d.length === 14) d = d.slice(0, 9);\n    return d.length === 9 ? d : null;\n  }\n\n  function iban(v) { return estVide(v) ? null : String(v).toUpperCase().replace(/[^A-Z0-9]/g, '') || null; }\n\n  function texte(v) {\n    if (v instanceof Date) return formatDate(v);\n    return estVide(v) ? '' : String(v).trim();\n  }\n\n  function convertir(v, type) {\n    switch (type) {\n      case 'nombre': return num(v);\n      case 'date': return date(v);\n      case 'siren': return siren(v);\n      case 'iban': return iban(v);\n      case 'booleen': { var n = normaliser(v); return n === '' ? null : ['oui', 'vrai', 'true', '1', 'x', 'yes', 'paye', 'payee', 'regle', 'reglee'].indexOf(n) > -1; }\n      default: return texte(v);\n    }\n  }\n\n  function sirenValide(s) {\n    s = siren(s); if (!s) return false;\n    var t = 0;\n    for (var i = 0; i < 9; i++) { var c = +s[8 - i]; if (i % 2 === 1) { c *= 2; if (c > 9) c -= 9; } t += c; }\n    return t % 10 === 0 || s === '356000000';\n  }\n\n  function ibanValide(v) {\n    var s = iban(v); if (!s || s.length < 15 || s.length > 34 || !/^[A-Z]{2}\\d{2}[A-Z0-9]+$/.test(s)) return false;\n    var r = s.slice(4) + s.slice(0, 4), reste = 0;\n    for (var i = 0; i < r.length; i++) {\n      var ch = r[i], val = ch >= 'A' ? String(ch.charCodeAt(0) - 55) : ch;\n      for (var k = 0; k < val.length; k++) reste = (reste * 10 + (+val[k])) % 97;\n    }\n    return reste === 1;\n  }\n\n  function tvaIntracomFR(s) {\n    s = siren(s); if (!s) return null;\n    var cle = (12 + 3 * (Number(s) % 97)) % 97;\n    return 'FR' + (cle < 10 ? '0' : '') + cle + s;\n  }\n\n  function formatEuro(v) { return v == null || !isFinite(v) ? '' : new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(v); }\n  function formatNombre(v, dec) { return v == null || !isFinite(v) ? '' : new Intl.NumberFormat('fr-FR', { maximumFractionDigits: dec == null ? 2 : dec }).format(v); }\n  function formatDate(d) { d = date(d); if (!d) return ''; var p = function (n) { return (n < 10 ? '0' : '') + n; }; return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear(); }\n\n  function aujourdhui() { var d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }\n  function joursEntre(d1, d2) { d1 = date(d1); d2 = date(d2); if (!d1 || !d2) return null; return Math.round((Date.UTC(d2.getFullYear(), d2.getMonth(), d2.getDate()) - Date.UTC(d1.getFullYear(), d1.getMonth(), d1.getDate())) / 86400000); }\n  function ajouterJours(d, n) { d = date(d); return d ? new Date(d.getFullYear(), d.getMonth(), d.getDate() + n) : null; }\n  function ajouterMois(d, n) { d = date(d); if (!d) return null; var fin = new Date(d.getFullYear(), d.getMonth() + n + 1, 0).getDate(); return new Date(d.getFullYear(), d.getMonth() + n, Math.min(d.getDate(), fin)); }\n  function debutMois(d) { d = date(d); return d ? new Date(d.getFullYear(), d.getMonth(), 1) : null; }\n  function moisCle(d) { d = date(d); return d ? d.getFullYear() + '-' + (d.getMonth() < 9 ? '0' : '') + (d.getMonth() + 1) : ''; }\n\n  function cleFn(k) { return typeof k === 'function' ? k : function (x) { return x == null ? undefined : x[k]; }; }\n  function grouper(liste, k) { var f = cleFn(k), r = {}; (liste || []).forEach(function (x) { var c = f(x); c = c == null || c === '' ? '(vide)' : String(c); (r[c] = r[c] || []).push(x); }); return r; }\n  function valeurs(liste, k) { var f = cleFn(k); return (liste || []).map(f).map(function (v) { return typeof v === 'number' ? v : num(v); }).filter(function (v) { return v != null && isFinite(v); }); }\n  function somme(liste, k) { return valeurs(liste, k).reduce(function (a, b) { return a + b; }, 0); }\n  function moyenne(liste, k) { var v = valeurs(liste, k); return v.length ? somme(v, function (x) { return x; }) / v.length : 0; }\n  function mediane(liste, k) { var v = valeurs(liste, k).sort(function (a, b) { return a - b; }); if (!v.length) return 0; var m = Math.floor(v.length / 2); return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; }\n  function max(liste, k) { var v = valeurs(liste, k); return v.length ? Math.max.apply(null, v) : 0; }\n  function min(liste, k) { var v = valeurs(liste, k); return v.length ? Math.min.apply(null, v) : 0; }\n  function arrondi(v, dec) { if (v == null || !isFinite(v)) return 0; var p = Math.pow(10, dec == null ? 2 : dec); return Math.round(v * p) / p; }\n  function pourcent(a, b) { return b ? arrondi(a / b * 100, 1) : 0; }\n  function trier(liste, k, desc) { var f = cleFn(k); return (liste || []).slice().sort(function (a, b) { var x = f(a), y = f(b); if (x instanceof Date) x = +x; if (y instanceof Date) y = +y; if (x == null) return 1; if (y == null) return -1; return (x < y ? -1 : x > y ? 1 : 0) * (desc ? -1 : 1); }); }\n\n  function creerOutils(api, progression) {\n    return {\n      num: num, date: date, texte: texte, siren: siren, iban: iban, normaliser: normaliser,\n      aujourdhui: aujourdhui(), joursEntre: joursEntre, ajouterJours: ajouterJours, ajouterMois: ajouterMois,\n      debutMois: debutMois, moisCle: moisCle, grouper: grouper, somme: somme, moyenne: moyenne, mediane: mediane,\n      max: max, min: min, arrondi: arrondi, pourcent: pourcent, trier: trier,\n      sirenValide: sirenValide, ibanValide: ibanValide, tvaIntracomFR: tvaIntracomFR,\n      formatEuro: formatEuro, formatNombre: formatNombre, formatDate: formatDate,\n      api: api || {}, progression: progression || function () {}\n    };\n  }\n\n  function score(entete, champ) {\n    var h = normaliser(entete); if (!h) return 0;\n    var cands = [champ.libelle, champ.cle].concat(champ.motscles || []).map(normaliser).filter(Boolean);\n    var best = 0;\n    cands.forEach(function (c) {\n      if (h === c) best = Math.max(best, 100);\n      else if ((' ' + h + ' ').indexOf(' ' + c + ' ') > -1) best = Math.max(best, 70 + Math.min(c.length, 20));\n      else if (h.indexOf(c) > -1 && c.length >= 4) best = Math.max(best, 55 + Math.min(c.length, 20));\n      else {\n        var mh = h.split(' '), mc = c.split(' '), com = mc.filter(function (w) { return w.length > 2 && mh.indexOf(w) > -1; }).length;\n        if (com) best = Math.max(best, 30 + 15 * com);\n      }\n    });\n    return best;\n  }\n\n  function correspondanceAuto(entetes, champs) {\n    var res = {}, pris = {};\n    var paires = [];\n    champs.forEach(function (c) { entetes.forEach(function (h, i) { var s = score(h, c); if (s >= 40) paires.push({ c: c.cle, i: i, s: s + (c.obligatoire ? 1 : 0) }); }); });\n    paires.sort(function (a, b) { return b.s - a.s; });\n    paires.forEach(function (p) { if (res[p.c] == null && !pris[p.i]) { res[p.c] = p.i; pris[p.i] = true; } });\n    return res;\n  }\n\n  function convertirLignes(lignesBrutes, entetes, champs, corresp) {\n    var out = [];\n    lignesBrutes.forEach(function (l) {\n      if (!l || !l.some(function (v) { return !estVide(v); })) return;\n      var o = { _brut: {} };\n      entetes.forEach(function (h, i) { o._brut[h || ('Colonne ' + (i + 1))] = l[i]; });\n      champs.forEach(function (c) { var i = corresp[c.cle]; o[c.cle] = i == null ? null : convertir(l[i], c.type); });\n      out.push(o);\n    });\n    return out;\n  }\n\n  function convertirExemple(lignes, champs) {\n    return (lignes || []).map(function (l) {\n      var o = { _brut: {} };\n      champs.forEach(function (c) { o[c.cle] = convertir(l[c.cle], c.type); o._brut[c.libelle] = l[c.cle]; });\n      return o;\n    });\n  }\n\n  function valeurParametre(p, brut) {\n    var v = brut === undefined ? p.defaut : brut;\n    switch (p.type) {\n      case 'nombre': case 'pourcentage': { var n = num(v); return n == null ? (num(p.defaut) || 0) : n; }\n      case 'booleen': return v === true || ['true', 'oui', '1', 'vrai'].indexOf(normaliser(v)) > -1;\n      case 'date': return date(v);\n      case 'table': return lireTable(v, p.colonnes || []);\n      default: return v == null ? '' : String(v);\n    }\n  }\n\n  function lireTable(v, colonnes) {\n    if (Array.isArray(v)) return v;\n    var txt = String(v || '').trim(); if (!txt) return [];\n    if (/^\\[/.test(txt)) { try { var j = JSON.parse(txt); if (Array.isArray(j)) return j; } catch (e) { /* texte collé */ } }\n    var lignes = txt.split(/\\r?\\n/).filter(function (l) { return l.trim(); });\n    var sep = lignes[0].indexOf('\\t') > -1 ? '\\t' : (lignes[0].indexOf(';') > -1 ? ';' : ',');\n    var cells = lignes.map(function (l) { return l.split(sep).map(function (c) { return c.trim().replace(/^\"|\"$/g, ''); }); });\n    var premiere = cells[0].map(normaliser);\n    var aEntete = colonnes.some(function (c) { return premiere.indexOf(normaliser(c.libelle)) > -1 || premiere.indexOf(normaliser(c.cle)) > -1; });\n    var idx = colonnes.map(function (c, i) {\n      if (!aEntete) return i;\n      var k = premiere.indexOf(normaliser(c.libelle)); if (k < 0) k = premiere.indexOf(normaliser(c.cle)); return k;\n    });\n    return cells.slice(aEntete ? 1 : 0).map(function (r) {\n      var o = {}; colonnes.forEach(function (c, i) { o[c.cle] = idx[i] < 0 ? null : convertir(r[idx[i]], c.type || 'texte'); }); return o;\n    });\n  }\n\n  function detecterSeparateur(ligne) {\n    var cands = [';', ',', '\\t', '|'], best = ';', n = -1;\n    cands.forEach(function (c) { var k = 0, q = false; for (var i = 0; i < ligne.length; i++) { var ch = ligne[i]; if (ch === '\"') q = !q; else if (ch === c && !q) k++; } if (k > n) { n = k; best = c; } });\n    return best;\n  }\n\n  function lireCSV(txt) {\n    txt = String(txt || '').replace(/^﻿/, '');\n    var premiere = txt.split(/\\r?\\n/).find(function (l) { return l.trim(); }) || '';\n    var sep = detecterSeparateur(premiere), rows = [], row = [], cell = '', q = false;\n    for (var i = 0; i < txt.length; i++) {\n      var ch = txt[i];\n      if (q) {\n        if (ch === '\"') { if (txt[i + 1] === '\"') { cell += '\"'; i++; } else q = false; }\n        else cell += ch;\n      } else if (ch === '\"') q = true;\n      else if (ch === sep) { row.push(cell); cell = ''; }\n      else if (ch === '\\n' || ch === '\\r') { if (ch === '\\r' && txt[i + 1] === '\\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; }\n      else cell += ch;\n    }\n    if (cell !== '' || row.length) { row.push(cell); rows.push(row); }\n    return rows;\n  }\n\n  function trouverEntete(rows, champs) {\n    var best = 0, bestScore = -1;\n    for (var i = 0; i < Math.min(rows.length, 15); i++) {\n      var r = rows[i] || [], nonVides = r.filter(function (v) { return !estVide(v); }).length;\n      if (nonVides < 2) continue;\n      var sc = nonVides;\n      (champs || []).forEach(function (c) { r.forEach(function (h) { if (score(h, c) >= 55) sc += 10; }); });\n      if (sc > bestScore) { bestScore = sc; best = i; }\n    }\n    return best;\n  }\n\n  function versCSV(colonnes, lignes) {\n    var esc = function (v) { var s = v instanceof Date ? formatDate(v) : (typeof v === 'number' ? String(v).replace('.', ',') : (v == null ? '' : String(v))); return /[\";\\n]/.test(s) ? '\"' + s.replace(/\"/g, '\"\"') + '\"' : s; };\n    return '﻿' + [colonnes.map(function (c) { return esc(c.libelle); }).join(';')].concat(lignes.map(function (l) { return colonnes.map(function (c) { return esc(l[c.cle]); }).join(';'); })).join('\\r\\n');\n  }\n\n  function verifierResultat(r) {\n    var err = [];\n    if (!r || typeof r !== 'object') return ['analyser() doit renvoyer un objet'];\n    ['kpis', 'alertes', 'tableaux'].forEach(function (k) { if (r[k] != null && !Array.isArray(r[k])) err.push(k + ' doit être un tableau'); });\n    var mauvais = function (v) { return (typeof v === 'number' && !isFinite(v)) || (typeof v === 'string' && /^(NaN|undefined|Infinity|-Infinity|null|\\[object Object\\])$/.test(v.trim())) || (v instanceof Date && isNaN(v)); };\n    (r.kpis || []).forEach(function (k, i) { if (!k || !k.libelle) err.push('kpis[' + i + '] sans libelle'); else if (mauvais(k.valeur)) err.push('KPI « ' + k.libelle + ' » = ' + k.valeur); });\n    (r.alertes || []).forEach(function (a, i) { if (!a || !a.titre) err.push('alertes[' + i + '] sans titre'); });\n    (r.tableaux || []).forEach(function (t, i) {\n      if (!t || !t.titre || !Array.isArray(t.colonnes) || !Array.isArray(t.lignes)) { err.push('tableaux[' + i + '] doit avoir titre, colonnes[] et lignes[]'); return; }\n      t.colonnes.forEach(function (c) { if (!c || !c.cle || !c.libelle) err.push('Colonne sans cle/libelle dans « ' + t.titre + ' »'); });\n      t.lignes.slice(0, 500).forEach(function (l) { t.colonnes.forEach(function (c) { if (c && mauvais(l[c.cle])) err.push('Valeur invalide « ' + l[c.cle] + ' » colonne « ' + c.libelle + ' » du tableau « ' + t.titre + ' »'); }); });\n      if (t.lignes.length && t.colonnes.length) {\n        t.colonnes.forEach(function (c) { if (c && t.lignes.every(function (l) { return l[c.cle] === undefined; })) err.push('Colonne « ' + c.libelle + ' » toujours vide (clé « ' + c.cle + ' » absente des lignes) dans « ' + t.titre + ' »'); });\n      }\n    });\n    (r.graphiques || []).forEach(function (g, i) { if (!g || !g.titre || !Array.isArray(g.barres)) err.push('graphiques[' + i + '] doit avoir titre et barres[]'); else g.barres.forEach(function (b) { if (mauvais(b.valeur)) err.push('Barre invalide dans « ' + g.titre + ' »'); }); });\n    return err.filter(function (e, i, a) { return a.indexOf(e) === i; }).slice(0, 15);\n  }\n\n\n\n  /* Analyse d'une annonce BODACC de procédure collective : type de procédure et type de jugement. */\n  function analyserJugement(famille, nature) {\n    var t = normaliser((famille || '') + ' ' + (nature || ''));\n    var procedure = /liquidation/.test(t) ? 'liquidation' : (/redressement/.test(t) ? 'redressement' : (/sauvegarde/.test(t) ? 'sauvegarde' : (/retablissement/.test(t) ? 'rétablissement professionnel' : null)));\n    var type = /cloture/.test(t) ? 'clôture' : (/ouverture/.test(t) ? 'ouverture' : (/prononcant la liquidation|conversion/.test(t) ? 'conversion' : (/plan/.test(t) ? 'plan' : 'autre')));\n    return { procedure: procedure, type_jugement: type, procedure_en_cours: type !== 'clôture' };\n  }\n\n\n  /* ---------- Connecteur Pennylane (API v2) : réponses de l'API → tableaux aux colonnes françaises ---------- */\n  var STATUTS_FACTURE = { paid: 'Payée', partially_paid: 'Partiellement payée', late: 'En retard', upcoming: 'À venir', draft: 'Brouillon', cancelled: 'Annulée', partially_cancelled: 'Partiellement annulée', archived: 'Archivée', incomplete: 'Incomplète', credit_note: 'Avoir', proforma: 'Proforma' };\n  var STATUTS_DEVIS = { pending: 'En attente', accepted: 'Accepté', denied: 'Refusé', invoiced: 'Facturé', estimate_pending: 'En attente', estimate_accepted: 'Accepté', estimate_denied: 'Refusé', estimate_invoiced: 'Facturé', draft: 'Brouillon', expired: 'Expiré' };\n  var STATUTS_PAIEMENT = { to_be_processed: 'À traiter', to_be_paid: 'À payer', partially_paid: 'Partiellement payée', paid: 'Payée', payment_error: 'Erreur de paiement', payment_scheduled: 'Paiement programmé', payment_in_progress: 'Paiement en cours', payment_emitted: 'Paiement émis', payment_found: 'Paiement trouvé', paid_offline: 'Payée hors Pennylane', payment_not_needed: 'Aucun paiement nécessaire' };\n  function nb(v) { var n = num(v); return n == null ? null : n; }\n  function idDe(o) { return o && typeof o === 'object' ? o.id : o; }\n  function adresse(a) { a = a || {}; return { adresse: a.address || '', cp: a.postal_code || '', ville: a.city || '', pays: a.country_alpha2 || '' }; }\n  function tiers(refs, cle, id) { return (refs && refs[cle] && refs[cle][id]) || {}; }\n  var SOURCES = {\n    clients: { libelle: 'Clients', chemin: 'customers', parDate: false, colonnes: ['Nom', 'SIREN', 'N° TVA', 'Email', 'Adresse', 'Code postal', 'Ville', 'Pays', 'Conditions de paiement', 'Type', 'Référence', 'IBAN', 'Date de création'],\n      ligne: function (c) { var a = adresse(c.billing_address); return ['' + (c.name || [c.first_name, c.last_name].filter(Boolean).join(' ')), c.reg_no || '', c.vat_number || '', (c.emails || [])[0] || '', a.adresse, a.cp, a.ville, a.pays, c.payment_conditions || '', c.customer_type === 'individual' ? 'Particulier' : 'Entreprise', c.reference || '', c.billing_iban || '', c.created_at || '']; } },\n    fournisseurs: { libelle: 'Fournisseurs', chemin: 'suppliers', parDate: false, colonnes: ['Nom', 'SIREN', 'SIRET', 'N° TVA', 'IBAN', 'Email', 'Adresse', 'Code postal', 'Ville', 'Pays', 'Délai de paiement (jours)', 'Mode de paiement', 'Date de création', 'Dernière mise à jour'],\n      ligne: function (s) { var a = adresse(s.postal_address); return [s.name || '', s.reg_no || '', s.establishment_no || '', s.vat_number || '', s.iban || '', (s.emails || [])[0] || '', a.adresse, a.cp, a.ville, a.pays, s.supplier_due_date_delay == null ? '' : s.supplier_due_date_delay, s.supplier_payment_method || '', s.created_at || '', s.updated_at || '']; } },\n    factures_clients: { libelle: 'Factures clients', chemin: 'customer_invoices', parDate: true, jointure: 'clients', colonnes: ['Numéro de facture', 'Libellé', 'Client', 'SIREN client', 'Email client', 'Date de facture', \"Date d'échéance\", 'Montant TTC', 'Montant HT', 'TVA', 'Reste à payer', 'Payée', 'Statut', 'Avoir', 'Devise', 'Date de création', 'Dernière mise à jour'],\n      ligne: function (f, refs) { var c = tiers(refs, 'clients', idDe(f.customer)); var ttc = nb(f.amount), tva = nb(f.tax); return [f.invoice_number || '', f.label || '', c.name || '', c.reg_no || '', (c.emails || [])[0] || '', f.date || '', f.deadline || '', ttc, ttc == null ? null : ttc - (tva || 0), tva, nb(f.remaining_amount_with_tax), f.paid ? 'oui' : 'non', STATUTS_FACTURE[f.status] || f.status || '', (f.credit_note || f.status === 'credit_note' || (ttc != null && ttc < 0)) ? 'oui' : 'non', f.currency || 'EUR', f.created_at || '', f.updated_at || '']; } },\n    factures_fournisseurs: { libelle: 'Factures fournisseurs', chemin: 'supplier_invoices', parDate: true, jointure: 'fournisseurs', colonnes: ['Numéro de facture', 'Libellé', 'Fournisseur', 'SIREN fournisseur', 'IBAN fournisseur', 'Date de facture', \"Date d'échéance\", 'Montant TTC', 'Montant HT', 'TVA', 'Reste à payer', 'Payée', 'Statut de paiement', 'Devise', 'Date de création', 'Dernière mise à jour'],\n      ligne: function (f, refs) { var s = tiers(refs, 'fournisseurs', idDe(f.supplier)); var ttc = nb(f.amount), tva = nb(f.tax); return [f.invoice_number || '', f.label || '', s.name || '', s.reg_no || '', s.iban || '', f.date || '', f.deadline || '', ttc, ttc == null ? null : ttc - (tva || 0), tva, nb(f.remaining_amount_with_tax), f.paid ? 'oui' : 'non', STATUTS_PAIEMENT[f.payment_status] || f.payment_status || '', f.currency || 'EUR', f.created_at || '', f.updated_at || '']; } },\n    devis: { libelle: 'Devis', chemin: 'quotes', parDate: false, jointure: 'clients', colonnes: ['Numéro de devis', 'Libellé', 'Client', 'SIREN client', 'Date du devis', 'Date de validité', 'Montant TTC', 'Montant HT', 'Statut', 'Date de création', 'Dernière mise à jour'],\n      ligne: function (q, refs) { var c = tiers(refs, 'clients', idDe(q.customer)); var ttc = nb(q.amount), tva = nb(q.tax); return [q.quote_number || '', q.label || '', c.name || '', c.reg_no || '', q.date || '', q.deadline || '', ttc, ttc == null ? null : ttc - (tva || 0), STATUTS_DEVIS[q.status] || q.status || '', q.created_at || '', q.updated_at || '']; } },\n    transactions: { libelle: 'Transactions bancaires', chemin: 'transactions', parDate: true, colonnes: ['Date', 'Libellé', 'Montant', 'Reste à rapprocher', 'Justificatif requis', 'Compte bancaire', 'Devise', 'Date de création'],\n      ligne: function (t) { return [t.date || '', t.label || '', nb(t.amount), nb(t.outstanding_balance), t.attachment_required ? 'oui' : 'non', idDe(t.bank_account) == null ? '' : String(idDe(t.bank_account)), t.currency || 'EUR', t.created_at || '']; } }\n  };\n  function sourcesNecessaires(entrees) {\n    var s = [];\n    (entrees || []).forEach(function (e) { var src = SOURCES[e.source]; if (!src) return; if (src.jointure && s.indexOf(src.jointure) < 0) s.push(src.jointure); if (s.indexOf(e.source) < 0) s.push(e.source); });\n    return s;\n  }\n  function indexer(items) { var r = {}; (items || []).forEach(function (x) { if (x && x.id != null) r[x.id] = x; }); return r; }\n  function tablePennylane(source, items, refs) {\n    var src = SOURCES[source]; if (!src) return { entetes: [], lignes: [] };\n    return { entetes: src.colonnes.slice(), lignes: (items || []).map(function (x) { return src.ligne(x, refs || {}); }) };\n  }\n  function correspondancePennylane(source, champs) {\n    var src = SOURCES[source]; if (!src) return {};\n    var res = {}, pris = {};\n    champs.forEach(function (c) { var i = c.colonne_pennylane ? src.colonnes.indexOf(c.colonne_pennylane) : -1; if (i > -1) { res[c.cle] = i; pris[i] = true; } });\n    var auto = correspondanceAuto(src.colonnes, champs.filter(function (c) { return res[c.cle] == null; }));\n    Object.keys(auto).forEach(function (k) { if (!pris[auto[k]]) { res[k] = auto[k]; pris[auto[k]] = true; } });\n    return res;\n  }\n\n  /* ---------- Lecture des réponses des API publiques (partagée par le navigateur et n8n) ---------- */\n  function lireEntreprise(json, s) {\n    s = siren(s); var r = ((json && json.results) || []).filter(function (x) { return x.siren === s; })[0]; if (!r) return null;\n    var sg = r.siege || {};\n    return { siren: r.siren, nom: r.nom_complet || r.nom_raison_sociale || '', etat: r.etat_administratif === 'C' ? 'fermée' : 'active',\n      date_creation: date(r.date_creation), date_fermeture: date(r.date_fermeture), adresse: sg.adresse || '', code_postal: sg.code_postal || '',\n      naf: r.activite_principale || '', categorie: r.categorie_entreprise || '', effectif: r.tranche_effectif_salarie || '', nature_juridique: r.nature_juridique || '' };\n  }\n  function lireBodacc(json) {\n    return ((json && json.results) || []).map(function (r) {\n      var jug = {}; try { jug = r.jugement ? (typeof r.jugement === 'string' ? JSON.parse(r.jugement) : r.jugement) : {}; } catch (e) { jug = {}; }\n      var nature = jug.nature || jug.famille || r.typeavis_lib || '';\n      var a = { date: date(r.dateparution), date_jugement: date(jug.date), famille: r.familleavis || '', famille_libelle: r.familleavis_lib || '', nature: nature,\n        tribunal: r.tribunal || '', nom: r.commercant || '', url: r.url_complete || '', procedure_collective: r.familleavis === 'collective' };\n      var j = r.familleavis === 'collective' ? analyserJugement(jug.famille, jug.nature) : { procedure: null, type_jugement: null, procedure_en_cours: false };\n      Object.keys(j).forEach(function (k) { a[k] = j[k]; });\n      return a;\n    }).sort(function (x, y) { return (y.date ? +y.date : 0) - (x.date ? +x.date : 0); });\n  }\n  function urlEntreprise(s) { return 'https://recherche-entreprises.api.gouv.fr/search?q=' + siren(s) + '&per_page=1'; }\n  function urlBodacc(s, depuis) {\n    s = siren(s); depuis = date(depuis);\n    var where = 'registre like \"' + s + '\"' + (depuis ? \" and dateparution >= date'\" + depuis.getFullYear() + '-' + (depuis.getMonth() < 9 ? '0' : '') + (depuis.getMonth() + 1) + '-' + (depuis.getDate() < 10 ? '0' : '') + depuis.getDate() + \"'\" : '');\n    return 'https://bodacc-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/annonces-commerciales/records?where=' + encodeURIComponent(where) + '&order_by=dateparution%20desc&limit=50';\n  }\n\n  /* Encodage base64 UTF-8 sans dépendance (pièces jointes n8n). */\n  function base64(txt) {\n    var bytes = unescape(encodeURIComponent(String(txt))), tab = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/', out = '';\n    for (var i = 0; i < bytes.length; i += 3) {\n      var a = bytes.charCodeAt(i), b = bytes.charCodeAt(i + 1), c = bytes.charCodeAt(i + 2);\n      var t = (a << 16) | ((b || 0) << 8) | (c || 0);\n      out += tab[(t >> 18) & 63] + tab[(t >> 12) & 63] + (i + 1 < bytes.length ? tab[(t >> 6) & 63] : '=') + (i + 2 < bytes.length ? tab[t & 63] : '=');\n    }\n    return out;\n  }\n\n  /* API simulée pour le mode démonstration et les tests automatiques (aucun appel réseau). */\n  var apiDemo = {\n    entreprise: function (s) {\n      s = siren(s); if (!s) return Promise.resolve(null);\n      var fermee = /0$/.test(s);\n      return Promise.resolve({ siren: s, nom: 'Entreprise démo ' + s.slice(-3), etat: fermee ? 'fermée' : 'active', date_creation: new Date(2015, 0, 1), date_fermeture: fermee ? ajouterJours(aujourdhui(), -40) : null,\n        adresse: '1 rue de la Démo 69001 LYON', code_postal: '69001', naf: '62.01Z', categorie: 'PME', effectif: '11', nature_juridique: '5710' });\n    },\n    bodacc: function (s) {\n      s = siren(s); if (!s) return Promise.resolve([]);\n      var nom = 'Entreprise démo ' + s.slice(-3), base = { tribunal: 'Tribunal de commerce de Lyon (démo)', nom: nom, url: 'https://www.bodacc.fr/' };\n      function annonce(jours, famille, libelle, nature) {\n        var j = analyserJugement(famille, nature);\n        return Object.assign({ date: ajouterJours(aujourdhui(), jours), date_jugement: ajouterJours(aujourdhui(), jours - 6), famille: famille, famille_libelle: libelle, nature: nature, procedure_collective: famille === 'collective' }, j, base);\n      }\n      if (/7$/.test(s)) return Promise.resolve([annonce(-25, 'collective', 'Procédures collectives', \"Jugement d'ouverture d'une procédure de redressement judiciaire\")]);\n      if (/3$/.test(s)) return Promise.resolve([annonce(-50, 'collective', 'Procédures collectives', \"Jugement d'ouverture d'une procédure de liquidation judiciaire\")]);\n      if (/9$/.test(s)) return Promise.resolve([annonce(-15, 'collective', 'Procédures collectives', \"Jugement de clôture pour insuffisance d'actif\"), annonce(-300, 'collective', 'Procédures collectives', \"Jugement d'ouverture d'une procédure de liquidation judiciaire\")]);\n      return Promise.resolve([annonce(-200, 'dpc', 'Dépôts des comptes', '')]);\n    }\n  };\n\n  return {\n    apiDemo: apiDemo, analyserJugement: analyserJugement, ajouterMois: ajouterMois, SOURCES: SOURCES, sourcesNecessaires: sourcesNecessaires, indexer: indexer, tablePennylane: tablePennylane, correspondancePennylane: correspondancePennylane, lireEntreprise: lireEntreprise, lireBodacc: lireBodacc, urlEntreprise: urlEntreprise, urlBodacc: urlBodacc, base64: base64, normaliser: normaliser, num: num, date: date, siren: siren, iban: iban, texte: texte, convertir: convertir,\n    sirenValide: sirenValide, ibanValide: ibanValide, tvaIntracomFR: tvaIntracomFR,\n    formatEuro: formatEuro, formatNombre: formatNombre, formatDate: formatDate,\n    joursEntre: joursEntre, aujourdhui: aujourdhui, creerOutils: creerOutils,\n    correspondanceAuto: correspondanceAuto, convertirLignes: convertirLignes, convertirExemple: convertirExemple,\n    valeurParametre: valeurParametre, lireTable: lireTable, lireCSV: lireCSV, trouverEntete: trouverEntete,\n    versCSV: versCSV, verifierResultat: verifierResultat, score: score\n  };\n})();\nif (typeof module !== 'undefined' && module.exports) module.exports = OutilCore;\n\n\n// ════ Moteur de l'outil « Audit clients facturation électronique » (ne pas modifier) ════\nfunction genererExemple() {\n  return {\n    base_clients: [\n      { nom: 'ACME Solutions SAS', siren: '812345684', tva: 'FR12812345684', adresse: '12 rue de la Paix', code_postal: '75002', ville: 'Paris', pays: 'France' },\n      { nom: 'Boulangerie Moderne SARL', siren: '812345726', tva: 'FR34812345726', adresse: '5 avenue Victor Hugo', code_postal: '69006', ville: 'Lyon', pays: 'France' },\n      { nom: 'Tech & Co Distribution', siren: '812345775', tva: '', adresse: '14 boulevard Haussmann', code_postal: '75009', ville: 'Paris', pays: 'France' },\n      { nom: 'Menuiserie Dubois EURL', siren: '812345817', tva: 'FR56812345817', adresse: 'Zone Industrielle Nord', code_postal: '44000', ville: 'Nantes', pays: 'France' },\n      { nom: 'Garage Central SA', siren: '812345866', tva: 'FR78812345866', adresse: '', code_postal: '', ville: 'Marseille', pays: 'France' },\n      { nom: 'Cabinet Conseil Alpha', siren: '812345908', tva: 'FR90812345908', adresse: '8 rue Royale', code_postal: '59000', ville: 'Lille', pays: 'France' },\n      { nom: 'Imprimerie Provençale', siren: '812345957', tva: 'FR11812345957', adresse: '3 cours Mirabeau', code_postal: '13100', ville: 'Aix-en-Provence', pays: 'France' },\n      { nom: 'Bâti Rénov Pro', siren: '812345999', tva: '', adresse: '25 route de Toulouse', code_postal: '33000', ville: 'Bordeaux', pays: 'France' },\n      { nom: 'Logistique Ouest SAS', siren: '812346013', tva: 'FR22812346013', adresse: '10 allée des Chênes', code_postal: '35000', ville: 'Rennes', pays: 'France' },\n      { nom: 'Pharmacie de la Mairie', siren: '812346062', tva: 'FR33812346062', adresse: '2 place Centrale', code_postal: '67000', ville: 'Strasbourg', pays: 'France' },\n      { nom: 'Ancienne Ferronnerie SAS', siren: '823456710', tva: 'FR44823456710', adresse: '18 chemin Vert', code_postal: '31000', ville: 'Toulouse', pays: 'France' },\n      { nom: 'Transport Express Sud', siren: '823456850', tva: 'FR55823456850', adresse: 'ZAC des Vignes', code_postal: '34000', ville: 'Montpellier', pays: 'France' },\n      { nom: 'Consultant Sans Siret', siren: '', tva: '', adresse: '45 rue de la République', code_postal: '69002', ville: 'Lyon', pays: 'France' },\n      { nom: 'Dupont Jean-Marc', siren: '', tva: '', adresse: '12 rue des Fleurs', code_postal: '75015', ville: 'Paris', pays: 'France' },\n      { nom: 'Société Fictive Invalide', siren: '123456789', tva: 'FR99123456789', adresse: '1 rue Imaginaire', code_postal: '99999', ville: 'Nullepart', pays: 'France' },\n      { nom: 'Global Trading BV', siren: '', tva: 'NL888888888B01', adresse: 'Keizersgracht 421', code_postal: '1016 EK', ville: 'Amsterdam', pays: 'Pays-Bas' }\n    ]\n  };\n}\n\nasync function analyser(donnees, params, outils) {\n  var clients = donnees.base_clients || [];\n\n  if (clients.length === 0) {\n    return {\n      kpis: [\n        { libelle: 'Taux de conformité', valeur: 0, format: 'pourcent', niveau: 'info', detail: 'Aucun client' },\n        { libelle: 'Clients analysés', valeur: 0, format: 'nombre', niveau: 'info' },\n        { libelle: 'Fiches non conformes', valeur: 0, format: 'nombre', niveau: 'info' },\n        { libelle: 'Adresses incomplètes', valeur: 0, format: 'nombre', niveau: 'info' }\n      ],\n      alertes: [{\n        niveau: 'info',\n        titre: 'Base clients vide',\n        detail: 'Veuillez importer le fichier exporté depuis Pennylane pour lancer l\\'audit de conformité à la facturation électronique.'\n      }],\n      tableaux: [{\n        id: 'conformite',\n        titre: 'Diagnostic des fiches clients',\n        description: 'Détail de la conformité par client pour la facturation électronique.',\n        colonnes: [\n          { cle: 'nom', libelle: 'Nom client', format: 'texte' },\n          { cle: 'pays', libelle: 'Pays', format: 'texte' },\n          { cle: 'siren', libelle: 'SIREN', format: 'texte' },\n          { cle: 'statut_insee', libelle: 'Statut INSEE', format: 'texte' },\n          { cle: 'adresse_ok', libelle: 'Adresse complète', format: 'texte' },\n          { cle: 'tva', libelle: 'N° TVA', format: 'texte' },\n          { cle: 'statut_audit', libelle: 'Statut conformité', format: 'niveau' },\n          { cle: 'action', libelle: 'Action corrective', format: 'texte' }\n        ],\n        lignes: []\n      }],\n      graphiques: []\n    };\n  }\n\n  var ignorerParticuliers = params.ignorer_particuliers !== false;\n  var exigerTva = params.exiger_tva === true;\n  var seuilAlerte = params.seuil_alerte_taux_erreur != null ? outils.num(params.seuil_alerte_taux_erreur) : 10;\n\n  function estParticulier(nom) {\n    if (!nom) return false;\n    var n = outils.normaliser(nom);\n    var motsPro = ['sas', 'sarl', 'eurl', 'sa', 'sci', 'snc', 'gie', 'assoc', 'association', 'fondation', 'ets', 'ets.', 'ets ', 'ste', 'ste.', 'groupe', 'cabinet', 'boulangerie', 'menuiserie', 'garage', 'transport', 'imprimerie', 'solutions', 'consulting', 'tech', 'trading', 'services', 'co'];\n    var parts = n.split(/[\\s,.-]+/);\n    for (var i = 0; i < parts.length; i++) {\n      if (motsPro.indexOf(parts[i]) !== -1) return false;\n    }\n    // Heuristique prénom / nom : deux mots simples sans terme société\n    return parts.length >= 2 && parts.length <= 3;\n  }\n\n  // Collecte et dédoublonnage des SIREN valides pour appel API\n  var sirensUniques = [];\n  var sirensMap = {};\n\n  clients.forEach(function (c) {\n    var s = (c.siren || '').toString().trim().replace(/\\s+/g, '');\n    if (s && outils.sirenValide(s)) {\n      if (!sirensMap[s]) {\n        sirensMap[s] = true;\n        sirensUniques.push(s);\n      }\n    }\n  });\n\n  var donneesInsee = {};\n  var maxSiren = Math.min(sirensUniques.length, 300);\n\n  for (var i = 0; i < maxSiren; i++) {\n    var sirenCourant = sirensUniques[i];\n    outils.progression('Vérification INSEE : ' + (i + 1) + ' / ' + maxSiren, (i + 1) / maxSiren);\n    try {\n      var res = await outils.api.entreprise(sirenCourant);\n      donneesInsee[sirenCourant] = res;\n    } catch (e) {\n      donneesInsee[sirenCourant] = null;\n    }\n  }\n\n  var fichesTraitees = [];\n  var nbNonConformes = 0;\n  var nbAdressesIncompletes = 0;\n  var nbSirenManquants = 0;\n  var nbSirenInvalides = 0;\n  var nbFermees = 0;\n  var nbTvaManquantes = 0;\n\n  clients.forEach(function (c) {\n    var nom = (c.nom || '').trim();\n    var sirenBrut = (c.siren || '').toString().trim().replace(/\\s+/g, '');\n    var pays = (c.pays || '').trim();\n    var paysNorm = outils.normaliser(pays);\n    var estFrance = paysNorm === '' || paysNorm === 'france' || paysNorm === 'fr';\n\n    var adresse = (c.adresse || '').trim();\n    var cp = (c.code_postal || '').trim();\n    var ville = (c.ville || '').trim();\n    var tva = (c.tva || '').trim();\n\n    var adresseComplete = (adresse !== '' && cp !== '' && ville !== '');\n    if (!adresseComplete) {\n      nbAdressesIncompletes++;\n    }\n\n    var estB2C = estParticulier(nom);\n    var anomalieNiveau = 'ok'; // ok, alerte, danger\n    var statutAudit = 'Conforme';\n    var action = 'Aucune';\n    var statutInsee = 'Non contrôlé';\n\n    if (!estFrance) {\n      statutInsee = 'Hors France';\n      if (!adresseComplete) {\n        anomalieNiveau = 'alerte';\n        statutAudit = 'Adresse incomplète';\n        action = 'Compléter adresse, code postal ou ville dans Pennylane';\n      }\n    } else {\n      // Client en France\n      if (sirenBrut === '') {\n        if (ignorerParticuliers && estB2C) {\n          statutInsee = 'Particulier (B2C)';\n          if (!adresseComplete) {\n            anomalieNiveau = 'alerte';\n            statutAudit = 'Adresse incomplète';\n            action = 'Compléter l\\'adresse de facturation';\n          }\n        } else {\n          nbSirenManquants++;\n          anomalieNiveau = 'alerte';\n          statutAudit = 'SIREN manquant';\n          action = 'Renseigner le SIREN 9 chiffres dans la fiche Pennylane';\n          statutInsee = 'Non renseigné';\n        }\n      } else if (!outils.sirenValide(sirenBrut)) {\n        nbSirenInvalides++;\n        anomalieNiveau = 'danger';\n        statutAudit = 'SIREN invalide';\n        action = 'Corriger le numéro SIREN (clé de Luhn incorrecte)';\n        statutInsee = 'Invalide';\n      } else {\n        // SIREN valide format\n        var info = donneesInsee[sirenBrut];\n        if (info) {\n          statutInsee = info.etat === 'fermée' ? 'Fermée' : 'Active';\n          if (info.etat === 'fermée') {\n            nbFermees++;\n            anomalieNiveau = 'danger';\n            statutAudit = 'Entreprise fermée';\n            action = 'Société radiée/fermée au Registre : vérifier la solvabilité et bloquer les commandes';\n          }\n        } else {\n          statutInsee = 'Inconnu INSEE';\n        }\n\n        if (anomalieNiveau === 'ok' && !adresseComplete) {\n          anomalieNiveau = 'alerte';\n          statutAudit = 'Adresse incomplète';\n          action = 'Compléter l\\'adresse ou la commune dans Pennylane';\n        }\n\n        if (anomalieNiveau === 'ok' && exigerTva && !tva) {\n          nbTvaManquantes++;\n          anomalieNiveau = 'alerte';\n          statutAudit = 'N° TVA manquant';\n          action = 'Renseigner le numéro de TVA intracommunautaire';\n        }\n      }\n    }\n\n    if (anomalieNiveau !== 'ok') {\n      nbNonConformes++;\n    }\n\n    var _niv = anomalieNiveau === 'danger' ? 'danger' : (anomalieNiveau === 'alerte' ? 'alerte' : null);\n\n    fichesTraitees.push({\n      nom: nom || '(Sans nom)',\n      pays: pays || 'France',\n      siren: sirenBrut || '-',\n      statut_insee: statutInsee,\n      adresse_ok: adresseComplete ? 'Complète' : 'Incomplète',\n      tva: tva || '-',\n      statut_audit: statutAudit,\n      action: action,\n      _niveau: _niv,\n      _severite: anomalieNiveau === 'danger' ? 2 : (anomalieNiveau === 'alerte' ? 1 : 0)\n    });\n  });\n\n  // Tri : danger d'abord, puis alerte, puis conforme\n  fichesTraitees = outils.trier(fichesTraitees, '_severite', true);\n\n  var totalClients = clients.length;\n  var nbConformes = totalClients - nbNonConformes;\n  var tauxConformite = outils.pourcent(nbConformes, totalClients);\n  var tauxErreur = outils.pourcent(nbNonConformes, totalClients);\n\n  var kpis = [\n    {\n      libelle: 'Taux de conformité',\n      valeur: tauxConformite,\n      format: 'pourcent',\n      niveau: tauxErreur > seuilAlerte ? 'danger' : (tauxErreur > 0 ? 'alerte' : 'ok'),\n      detail: nbConformes + ' sur ' + totalClients + ' clients conformes'\n    },\n    {\n      libelle: 'Clients analysés',\n      valeur: totalClients,\n      format: 'nombre',\n      niveau: 'info',\n      detail: 'Portefeuille Pennylane'\n    },\n    {\n      libelle: 'Fiches à corriger',\n      valeur: nbNonConformes,\n      format: 'nombre',\n      niveau: nbNonConformes > 0 ? 'danger' : 'ok',\n      detail: nbFermees + ' fermées, ' + (nbSirenManquants + nbSirenInvalides) + ' SIREN invalides/absents'\n    },\n    {\n      libelle: 'Adresses incomplètes',\n      valeur: nbAdressesIncompletes,\n      format: 'nombre',\n      niveau: nbAdressesIncompletes > 0 ? 'alerte' : 'ok',\n      detail: 'Voie, code postal ou ville manquant'\n    }\n  ];\n\n  var alertes = [];\n\n  if (sirensUniques.length > 300) {\n    alertes.push({\n      niveau: 'info',\n      titre: 'Plafond API atteint',\n      detail: 'Seuls les 300 premiers SIREN distincts ont été vérifiés auprès de l\\'INSEE. Traitez la base par tranches si nécessaire.'\n    });\n  }\n\n  if (nbFermees > 0) {\n    alertes.push({\n      niveau: 'danger',\n      titre: nbFermees + ' entreprise(s) radiée(s) ou fermée(s)',\n      detail: nbFermees + ' client(s) ont un SIREN correspondant à une entité fermée au Registre INSEE. Risque élevé d\\'impayé et facturation impossible. Bloquez les livraisons et mettez à jour la fiche.'\n    });\n  }\n\n  if (nbSirenInvalides > 0) {\n    alertes.push({\n      niveau: 'danger',\n      titre: nbSirenInvalides + ' SIREN invalide(s)',\n      detail: 'La clé de contrôle de ces SIREN est incorrecte. La plateforme publique (PPF / PDP) rejettera immédiatement toute facture émise vers ces tiers.'\n    });\n  }\n\n  if (nbSirenManquants > 0) {\n    alertes.push({\n      niveau: 'alerte',\n      titre: nbSirenManquants + ' client(s) B2B sans SIREN',\n      detail: 'En facturation électronique obligatoire, le SIREN de l\\'acheteur est la clé de routage indispensable. Renseignez-le directement dans Pennylane.'\n    });\n  }\n\n  if (tauxErreur > seuilAlerte && nbFermees === 0 && nbSirenInvalides === 0) {\n    alertes.push({\n      niveau: 'alerte',\n      titre: 'Taux de non-conformité élevé (' + outils.arrondi(tauxErreur, 1) + ' %)',\n      detail: 'Votre seuil d\\'alerte de ' + seuilAlerte + ' % est dépassé. ' + nbNonConformes + ' fiches clients doivent être assainies avant l\\'entrée en vigueur de l\\'obligation.'\n    });\n  }\n\n  if (nbAdressesIncompletes > 0 && alertes.length < 5) {\n    alertes.push({\n      niveau: 'alerte',\n      titre: nbAdressesIncompletes + ' adresse(s) incomplète(s)',\n      detail: 'L\\'adresse de facturation complète (voie, code postal, ville) est une mention obligatoire stricte sur le flux électronique de facturation.'\n    });\n  }\n\n  var tableauLignes = fichesTraitees.map(function (f) {\n    return {\n      nom: f.nom,\n      pays: f.pays,\n      siren: f.siren,\n      statut_insee: f.statut_insee,\n      adresse_ok: f.adresse_ok,\n      tva: f.tva,\n      statut_audit: f.statut_audit,\n      action: f.action,\n      _niveau: f._niveau\n    };\n  });\n\n  // Données pour le graphique\n  var statsAudit = outils.grouper(fichesTraitees, 'statut_audit');\n  var barresGraphique = Object.keys(statsAudit).map(function (statut) {\n    return {\n      libelle: statut,\n      valeur: statsAudit[statut].length\n    };\n  });\n  barresGraphique = outils.trier(barresGraphique, 'valeur', true);\n\n  return {\n    kpis: kpis,\n    alertes: alertes,\n    tableaux: [\n      {\n        id: 'conformite',\n        titre: 'Diagnostic de conformité des clients Pennylane',\n        description: 'Liste des clients classée par criticité : entreprises fermées et SIREN invalides en priorité.',\n        colonnes: [\n          { cle: 'nom', libelle: 'Nom client', format: 'texte' },\n          { cle: 'pays', libelle: 'Pays', format: 'texte' },\n          { cle: 'siren', libelle: 'SIREN', format: 'texte' },\n          { cle: 'statut_insee', libelle: 'Statut INSEE', format: 'texte' },\n          { cle: 'adresse_ok', libelle: 'Adresse complète', format: 'texte' },\n          { cle: 'tva', libelle: 'N° TVA', format: 'texte' },\n          { cle: 'statut_audit', libelle: 'Statut conformité', format: 'niveau' },\n          { cle: 'action', libelle: 'Action corrective', format: 'texte' }\n        ],\n        lignes: tableauLignes\n      }\n    ],\n    graphiques: [\n      {\n        titre: 'Répartition du portefeuille par conformité',\n        format: 'nombre',\n        barres: barresGraphique\n      }\n    ]\n  };\n}\n\n// ════ Exécution automatique ════\nconst OUTIL = {\"titre\":\"Audit clients facturation électronique\",\"slug\":\"20261018-audit-clients-facturation-electronique\",\"url\":\"https://acostathibault-dot.github.io/outils-pme/20261018-audit-clients-facturation-electronique/\",\"entrees\":[{\"id\":\"base_clients\",\"libelle\":\"Export de la base clients\",\"obligatoire\":true,\"description\":\"Dans Pennylane, depuis la liste de vos clients, exportez le fichier complet des clients (format CSV ou Excel).\",\"source\":\"clients\",\"champs\":[{\"cle\":\"nom\",\"libelle\":\"Nom du client\",\"type\":\"texte\",\"motscles\":[\"Nom\",\"Client\",\"Raison sociale\",\"Nom du client\",\"Tiers\",\"Customer name\"],\"obligatoire\":true,\"colonne_pennylane\":\"Nom\"},{\"cle\":\"siren\",\"libelle\":\"SIREN\",\"type\":\"siren\",\"motscles\":[\"SIREN\",\"Siren\",\"N° SIREN\",\"Numéro SIREN\",\"Siren client\",\"Registration number\"],\"obligatoire\":false,\"colonne_pennylane\":\"SIREN\"},{\"cle\":\"tva\",\"libelle\":\"N° TVA Intracommunautaire\",\"type\":\"texte\",\"motscles\":[\"N° TVA\",\"TVA\",\"Numéro de TVA\",\"TVA Intracommunautaire\",\"VAT number\",\"N° TVA client\"],\"obligatoire\":false,\"colonne_pennylane\":\"N° TVA\"},{\"cle\":\"adresse\",\"libelle\":\"Adresse\",\"type\":\"texte\",\"motscles\":[\"Adresse\",\"Voie\",\"Adresse client\",\"Street\",\"Adresse ligne 1\"],\"obligatoire\":false,\"colonne_pennylane\":\"Adresse\"},{\"cle\":\"code_postal\",\"libelle\":\"Code postal\",\"type\":\"texte\",\"motscles\":[\"Code postal\",\"CP\",\"Zip code\",\"Postal code\",\"Code postal client\"],\"obligatoire\":false,\"colonne_pennylane\":\"Code postal\"},{\"cle\":\"ville\",\"libelle\":\"Ville\",\"type\":\"texte\",\"motscles\":[\"Ville\",\"City\",\"Commune\",\"Ville client\"],\"obligatoire\":false,\"colonne_pennylane\":\"Ville\"},{\"cle\":\"pays\",\"libelle\":\"Pays\",\"type\":\"texte\",\"motscles\":[\"Pays\",\"Country\",\"Pays client\",\"Code pays\"],\"obligatoire\":false,\"colonne_pennylane\":\"Pays\"}]}],\"parametres\":[{\"cle\":\"ignorer_particuliers\",\"libelle\":\"Ignorer les particuliers (B2C)\",\"type\":\"booleen\",\"defaut\":\"true\",\"aide\":\"Ne pas signaler l'absence de SIREN pour les personnes physiques.\",\"options\":[],\"colonnes\":[]},{\"cle\":\"exiger_tva\",\"libelle\":\"Exiger le N° de TVA pour les clients FR\",\"type\":\"booleen\",\"defaut\":\"false\",\"aide\":\"Si activé, l'absence de N° de TVA intracommunautaire sera signalée comme une anomalie.\",\"options\":[],\"colonnes\":[]},{\"cle\":\"seuil_alerte_taux_erreur\",\"libelle\":\"Seuil d'alerte taux de non-conformité\",\"type\":\"pourcentage\",\"defaut\":\"10\",\"aide\":\"Alerte globale si le pourcentage de fiches non conformes dépasse ce seuil.\",\"options\":[],\"colonnes\":[]}],\"api\":[\"entreprises\"],\"signature\":\"Thibault Acosta-Mendez\"};\nconst NOEUDS = {\"clients\":\"Pennylane · Clients\"};\nconst C = OutilCore;\nconst reglages = $('⚙️ Réglages').first().json;\nconst lire = (nom) => { if (!nom) return []; try { return $(nom).all().map((i) => i.json); } catch (e) { return []; } };\nconst elements = (nom) => lire(nom).reduce((acc, p) => acc.concat(Array.isArray(p.items) ? p.items : []), []);\nconst brut = {};\nObject.keys(NOEUDS).forEach((s) => { brut[s] = elements(NOEUDS[s]); });\nconst refs = { clients: C.indexer(brut.clients), fournisseurs: C.indexer(brut.fournisseurs) };\n\n// Résultats des API publiques récupérés par les nœuds précédents (un résultat par SIREN, dans le même ordre)\nconst cacheEnt = {}, cacheBod = {};\nif (true) {\n  const sirens = lire('SIREN à vérifier').map((x) => x.siren);\n  const ent = lire(\"API Recherche d'entreprises\"), bod = lire(\"\");\n  sirens.forEach((s, i) => { if (ent[i]) cacheEnt[s] = C.lireEntreprise(ent[i], s); if (bod[i]) cacheBod[s] = C.lireBodacc(bod[i]); });\n}\nconst api = {\n  entreprise: async (s) => cacheEnt[C.siren(s)] || null,\n  bodacc: async (s, o) => { const d = C.date((o || {}).depuis); return (cacheBod[C.siren(s)] || []).filter((a) => !d || (a.date && a.date >= d)); }\n};\n\nconst donnees = {};\nOUTIL.entrees.forEach((e) => {\n  const t = C.tablePennylane(e.source, brut[e.source] || [], refs);\n  donnees[e.id] = t.lignes.length ? C.convertirLignes(t.lignes, t.entetes, e.champs, C.correspondancePennylane(e.source, e.champs)) : [];\n});\nconst params = {};\nOUTIL.parametres.forEach((p) => { const v = reglages[p.cle]; params[p.cle] = C.valeurParametre(p, v === undefined || v === null || v === '' ? undefined : v); });\n\nconst r = (await analyser(donnees, params, C.creerOutils(api))) || {};\n\n// Nouveautés depuis la dernière exécution (mémoire du workflow, active en production)\nconst etat = $getWorkflowStaticData('global');\nconst importantes = (r.alertes || []).filter((a) => a && (a.niveau === 'danger' || a.niveau === 'alerte'));\nconst deja = Array.isArray(etat.alertes_signalees) ? etat.alertes_signalees : [];\nconst nouvelles = importantes.filter((a) => deja.indexOf(a.titre) < 0);\netat.alertes_signalees = importantes.map((a) => a.titre).slice(0, 1000);\nconst toujours = C.normaliser(reglages.envoi).indexOf('toujours') > -1;\nconst envoyer = toujours || nouvelles.length > 0;\n\n// Email HTML\nconst h = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst fmt = (v, f) => {\n  if (v instanceof Date) return C.formatDate(v);\n  if (f === 'euro') return C.formatEuro(v);\n  if (f === 'pourcent') return v == null ? '' : C.formatNombre(v, 1) + ' %';\n  if (f === 'jours') return v == null ? '' : C.formatNombre(v, 0) + ' j';\n  if (f === 'nombre') return C.formatNombre(v);\n  if (f === 'date') return C.formatDate(v);\n  return v == null ? '' : String(v);\n};\nconst couleurs = { danger: '#b42318', alerte: '#9a5b00', ok: '#127a46', info: '#1f6feb' };\nlet html = '<div style=\"font-family:Arial,Helvetica,sans-serif;color:#0f1b2d;max-width:760px\">';\nhtml += '<h2 style=\"margin:0 0 4px\">' + h(OUTIL.titre) + '</h2><p style=\"color:#5b6678;margin:0 0 16px\">Rapport automatique du ' + h(C.formatDate(new Date())) + '</p>';\nif (nouvelles.length) html += '<p style=\"background:#fdecea;padding:10px 12px;border-radius:8px\"><b>' + nouvelles.length + ' nouveauté' + (nouvelles.length > 1 ? 's' : '') + '</b> depuis le dernier rapport.</p>';\nhtml += '<table style=\"border-collapse:collapse;margin:8px 0 16px\">' + (r.kpis || []).map((k) => '<tr><td style=\"padding:4px 12px 4px 0;color:#5b6678\">' + h(k.libelle) + '</td><td style=\"padding:4px 0;font-weight:bold;color:' + (couleurs[k.niveau] || '#0f1b2d') + '\">' + h(fmt(k.valeur, k.format)) + '</td></tr>').join('') + '</table>';\n(r.alertes || []).slice(0, 10).forEach((a) => {\n  const neuf = nouvelles.indexOf(a) > -1;\n  html += '<div style=\"border-left:4px solid ' + (couleurs[a.niveau] || '#1f6feb') + ';padding:8px 12px;margin:8px 0;background:#f6f8fb\">' + (neuf ? '<span style=\"background:#b42318;color:#fff;border-radius:4px;padding:1px 6px;font-size:11px;margin-right:6px\">NOUVEAU</span>' : '') + '<b>' + h(a.titre) + '</b>' + (a.detail ? '<br><span style=\"color:#333\">' + h(a.detail) + '</span>' : '') + '</div>';\n});\nconst tableaux = (r.tableaux || []).filter((t) => t && Array.isArray(t.lignes) && Array.isArray(t.colonnes));\nif (tableaux.length) {\n  const t = tableaux[0];\n  html += '<h3 style=\"margin:20px 0 6px\">' + h(t.titre) + ' (' + t.lignes.length + ' ligne' + (t.lignes.length > 1 ? 's' : '') + ')</h3>';\n  html += '<table style=\"border-collapse:collapse;font-size:12px;width:100%\"><tr>' + t.colonnes.map((c) => '<th style=\"text-align:left;background:#e8eef7;padding:6px;border:1px solid #e3e7ee\">' + h(c.libelle) + '</th>').join('') + '</tr>';\n  t.lignes.slice(0, 25).forEach((l) => { html += '<tr style=\"background:' + (l._niveau === 'danger' ? '#fdecea' : l._niveau === 'alerte' ? '#fff4e0' : '#fff') + '\">' + t.colonnes.map((c) => '<td style=\"padding:5px 6px;border:1px solid #e3e7ee\">' + (c.format === 'lien' && l[c.cle] ? '<a href=\"' + h(l[c.cle]) + '\">Voir</a>' : h(fmt(l[c.cle], c.format))) + '</td>').join('') + '</tr>'; });\n  html += '</table>' + (t.lignes.length > 25 ? '<p style=\"color:#5b6678;font-size:12px\">Détail complet en pièce jointe.</p>' : '');\n}\nhtml += '<p style=\"color:#5b6678;font-size:12px;margin-top:24px\">Données lues dans Pennylane par votre n8n, sans intermédiaire. ' + (OUTIL.url ? 'Version en ligne de l\\'outil : <a href=\"' + h(OUTIL.url) + '\">' + h(OUTIL.url) + '</a>. ' : '') + 'Outil gratuit créé par ' + h(OUTIL.signature) + '.</p></div>';\n\n// Pièces jointes CSV (une par tableau, 3 au maximum)\nconst binary = {}, pieces = [];\ntableaux.slice(0, 3).forEach((t, i) => {\n  const cle = 'rapport' + (i ? '_' + (i + 1) : '');\n  binary[cle] = { data: C.base64(C.versCSV(t.colonnes, t.lignes)), mimeType: 'text/csv', fileName: (OUTIL.slug || 'rapport') + (i ? '-' + (i + 1) : '') + '.csv' };\n  pieces.push(cle);\n});\nconst sujet = OUTIL.titre + ' · ' + (nouvelles.length ? nouvelles.length + ' nouveauté' + (nouvelles.length > 1 ? 's' : '') : (importantes.length ? importantes.length + ' alerte' + (importantes.length > 1 ? 's' : '') + ' en cours' : 'rien à signaler'));\nreturn [{ json: { envoyer, sujet, html, pieces_jointes: pieces.join(','), nouvelles: nouvelles.length, alertes: importantes.length, kpis: (r.kpis || []).map((k) => k.libelle + ' : ' + fmt(k.valeur, k.format)) }, binary }];"
+      },
+      "id": "9c5ba585-c1f5-4f07-b943-4891a29f92ee",
+      "position": [
+        1200,
+        300
+      ]
+    },
+    {
+      "name": "Quelque chose à signaler ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "0e09adc3-ad77-4244-acc5-21161b64b396",
+              "leftValue": "={{ $json.envoyer }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f0836abd-b18b-4f2f-8805-1e4d0463af3b",
+      "position": [
+        1440,
+        300
+      ]
+    },
+    {
+      "name": "Envoyer le rapport",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "parameters": {
+        "fromEmail": "={{ $('⚙️ Réglages').first().json.expediteur }}",
+        "toEmail": "={{ $('⚙️ Réglages').first().json.destinataires }}",
+        "subject": "={{ $json.sujet }}",
+        "emailFormat": "html",
+        "html": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false,
+          "fileAttachments": "={{ $json.pieces_jointes }}"
+        }
+      },
+      "id": "9c040d0a-f5c1-41b2-86b7-cd2c8dd32b5f",
+      "position": [
+        1680,
+        300
+      ]
+    },
+    {
+      "id": "949eb251-0db1-496d-a7aa-094fb67436da",
+      "name": "Note 1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -340
+      ],
+      "parameters": {
+        "content": "## Audit clients facturation électronique · version automatique\nDétectez les SIREN manquants, invalides ou fermés et préparez votre base clients à la facturation électronique.\n\nCe workflow tourne **le 1er de chaque mois à 8 h** dans votre n8n : il lit vos données Pennylane (lecture seule), applique exactement le même calcul que la mini-application en ligne et vous envoie un email **uniquement s'il y a du nouveau** (réglage `envoi`).\n\nVos données restent dans votre n8n et votre messagerie. Seuls les numéros SIREN sont envoyés aux API publiques de l'État (Recherche d'entreprises, BODACC).\n\nMini-application : https://acostathibault-dot.github.io/outils-pme/20261018-audit-clients-facturation-electronique/",
+        "width": 720,
+        "height": 300,
+        "color": 4
+      }
+    },
+    {
+      "id": "5184f7b7-a029-4bf0-9c4e-b15d90d53c38",
+      "name": "Note 2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        480,
+        520
+      ],
+      "parameters": {
+        "content": "### 1. Connexion Pennylane\nSur chaque nœud **Pennylane ·**, créez (une seule fois) une credential **Header Auth** :\n- Name : `Authorization`\n- Value : `Bearer ` suivi de votre token API Pennylane\n\nToken à créer dans Pennylane (paramètres, rubrique Intégrations / API), avec des droits **en lecture seule**.",
+        "width": 460,
+        "height": 260,
+        "color": 6
+      }
+    },
+    {
+      "id": "d51a3ab6-a2b4-4fc5-bb8d-5494555094a3",
+      "name": "Note 3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        520
+      ],
+      "parameters": {
+        "content": "### 2. Réglages\nOuvrez **⚙️ Réglages** : destinataires (séparés par des virgules), adresse expéditrice, `envoi` = « nouveautés uniquement » ou « toujours », historique en mois, et les réglages de l'outil.\n\nPour changer la fréquence, ouvrez **Planification**.",
+        "width": 460,
+        "height": 260,
+        "color": 6
+      }
+    },
+    {
+      "id": "d6f42883-91f1-44b6-acf9-34bc56294943",
+      "name": "Note 4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        520
+      ],
+      "parameters": {
+        "content": "### 3. Email puis activation\nSur **Envoyer le rapport**, créez la credential **SMTP** de votre messagerie (ou remplacez le nœud par Gmail, Outlook, Slack ou Teams).\n\nTestez avec **Execute workflow**, puis activez le workflow (interrupteur en haut à droite).\n\nLes exécutions de test envoient toujours l'email ; la détection des nouveautés fonctionne une fois le workflow activé.",
+        "width": 480,
+        "height": 280,
+        "color": 6
+      }
+    }
+  ],
+  "connections": {
+    "Planification": {
+      "main": [
+        [
+          {
+            "node": "⚙️ Réglages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Réglages": {
+      "main": [
+        [
+          {
+            "node": "Pennylane · Clients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pennylane · Clients": {
+      "main": [
+        [
+          {
+            "node": "SIREN à vérifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SIREN à vérifier": {
+      "main": [
+        [
+          {
+            "node": "API Recherche d'entreprises",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API Recherche d'entreprises": {
+      "main": [
+        [
+          {
+            "node": "Analyser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyser": {
+      "main": [
+        [
+          {
+            "node": "Quelque chose à signaler ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quelque chose à signaler ?": {
+      "main": [
+        [
+          {
+            "node": "Envoyer le rapport",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Paris"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
