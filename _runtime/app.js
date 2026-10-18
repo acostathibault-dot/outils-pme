@@ -280,6 +280,85 @@ var OutilCore = (function () {
     return { procedure: procedure, type_jugement: type, procedure_en_cours: type !== 'clôture' };
   }
 
+
+  /* ---------- Connecteur Pennylane (API v2) : réponses de l'API → tableaux aux colonnes françaises ---------- */
+  var STATUTS_FACTURE = { paid: 'Payée', partially_paid: 'Partiellement payée', late: 'En retard', upcoming: 'À venir', draft: 'Brouillon', cancelled: 'Annulée', partially_cancelled: 'Partiellement annulée', archived: 'Archivée', incomplete: 'Incomplète', credit_note: 'Avoir', proforma: 'Proforma' };
+  var STATUTS_DEVIS = { pending: 'En attente', accepted: 'Accepté', denied: 'Refusé', invoiced: 'Facturé', estimate_pending: 'En attente', estimate_accepted: 'Accepté', estimate_denied: 'Refusé', estimate_invoiced: 'Facturé', draft: 'Brouillon', expired: 'Expiré' };
+  var STATUTS_PAIEMENT = { to_be_processed: 'À traiter', to_be_paid: 'À payer', partially_paid: 'Partiellement payée', paid: 'Payée', payment_error: 'Erreur de paiement', payment_scheduled: 'Paiement programmé', payment_in_progress: 'Paiement en cours', payment_emitted: 'Paiement émis', payment_found: 'Paiement trouvé', paid_offline: 'Payée hors Pennylane', payment_not_needed: 'Aucun paiement nécessaire' };
+  function nb(v) { var n = num(v); return n == null ? null : n; }
+  function idDe(o) { return o && typeof o === 'object' ? o.id : o; }
+  function adresse(a) { a = a || {}; return { adresse: a.address || '', cp: a.postal_code || '', ville: a.city || '', pays: a.country_alpha2 || '' }; }
+  function tiers(refs, cle, id) { return (refs && refs[cle] && refs[cle][id]) || {}; }
+  var SOURCES = {
+    clients: { libelle: 'Clients', chemin: 'customers', parDate: false, colonnes: ['Nom', 'SIREN', 'N° TVA', 'Email', 'Adresse', 'Code postal', 'Ville', 'Pays', 'Conditions de paiement', 'Type', 'Référence', 'IBAN', 'Date de création'],
+      ligne: function (c) { var a = adresse(c.billing_address); return ['' + (c.name || [c.first_name, c.last_name].filter(Boolean).join(' ')), c.reg_no || '', c.vat_number || '', (c.emails || [])[0] || '', a.adresse, a.cp, a.ville, a.pays, c.payment_conditions || '', c.customer_type === 'individual' ? 'Particulier' : 'Entreprise', c.reference || '', c.billing_iban || '', c.created_at || '']; } },
+    fournisseurs: { libelle: 'Fournisseurs', chemin: 'suppliers', parDate: false, colonnes: ['Nom', 'SIREN', 'SIRET', 'N° TVA', 'IBAN', 'Email', 'Adresse', 'Code postal', 'Ville', 'Pays', 'Délai de paiement (jours)', 'Mode de paiement', 'Date de création', 'Dernière mise à jour'],
+      ligne: function (s) { var a = adresse(s.postal_address); return [s.name || '', s.reg_no || '', s.establishment_no || '', s.vat_number || '', s.iban || '', (s.emails || [])[0] || '', a.adresse, a.cp, a.ville, a.pays, s.supplier_due_date_delay == null ? '' : s.supplier_due_date_delay, s.supplier_payment_method || '', s.created_at || '', s.updated_at || '']; } },
+    factures_clients: { libelle: 'Factures clients', chemin: 'customer_invoices', parDate: true, jointure: 'clients', colonnes: ['Numéro de facture', 'Libellé', 'Client', 'SIREN client', 'Email client', 'Date de facture', "Date d'échéance", 'Montant TTC', 'Montant HT', 'TVA', 'Reste à payer', 'Payée', 'Statut', 'Avoir', 'Devise', 'Date de création', 'Dernière mise à jour'],
+      ligne: function (f, refs) { var c = tiers(refs, 'clients', idDe(f.customer)); var ttc = nb(f.amount), tva = nb(f.tax); return [f.invoice_number || '', f.label || '', c.name || '', c.reg_no || '', (c.emails || [])[0] || '', f.date || '', f.deadline || '', ttc, ttc == null ? null : ttc - (tva || 0), tva, nb(f.remaining_amount_with_tax), f.paid ? 'oui' : 'non', STATUTS_FACTURE[f.status] || f.status || '', (f.credit_note || f.status === 'credit_note' || (ttc != null && ttc < 0)) ? 'oui' : 'non', f.currency || 'EUR', f.created_at || '', f.updated_at || '']; } },
+    factures_fournisseurs: { libelle: 'Factures fournisseurs', chemin: 'supplier_invoices', parDate: true, jointure: 'fournisseurs', colonnes: ['Numéro de facture', 'Libellé', 'Fournisseur', 'SIREN fournisseur', 'IBAN fournisseur', 'Date de facture', "Date d'échéance", 'Montant TTC', 'Montant HT', 'TVA', 'Reste à payer', 'Payée', 'Statut de paiement', 'Devise', 'Date de création', 'Dernière mise à jour'],
+      ligne: function (f, refs) { var s = tiers(refs, 'fournisseurs', idDe(f.supplier)); var ttc = nb(f.amount), tva = nb(f.tax); return [f.invoice_number || '', f.label || '', s.name || '', s.reg_no || '', s.iban || '', f.date || '', f.deadline || '', ttc, ttc == null ? null : ttc - (tva || 0), tva, nb(f.remaining_amount_with_tax), f.paid ? 'oui' : 'non', STATUTS_PAIEMENT[f.payment_status] || f.payment_status || '', f.currency || 'EUR', f.created_at || '', f.updated_at || '']; } },
+    devis: { libelle: 'Devis', chemin: 'quotes', parDate: false, jointure: 'clients', colonnes: ['Numéro de devis', 'Libellé', 'Client', 'SIREN client', 'Date du devis', 'Date de validité', 'Montant TTC', 'Montant HT', 'Statut', 'Date de création', 'Dernière mise à jour'],
+      ligne: function (q, refs) { var c = tiers(refs, 'clients', idDe(q.customer)); var ttc = nb(q.amount), tva = nb(q.tax); return [q.quote_number || '', q.label || '', c.name || '', c.reg_no || '', q.date || '', q.deadline || '', ttc, ttc == null ? null : ttc - (tva || 0), STATUTS_DEVIS[q.status] || q.status || '', q.created_at || '', q.updated_at || '']; } },
+    transactions: { libelle: 'Transactions bancaires', chemin: 'transactions', parDate: true, colonnes: ['Date', 'Libellé', 'Montant', 'Reste à rapprocher', 'Justificatif requis', 'Compte bancaire', 'Devise', 'Date de création'],
+      ligne: function (t) { return [t.date || '', t.label || '', nb(t.amount), nb(t.outstanding_balance), t.attachment_required ? 'oui' : 'non', idDe(t.bank_account) == null ? '' : String(idDe(t.bank_account)), t.currency || 'EUR', t.created_at || '']; } }
+  };
+  function sourcesNecessaires(entrees) {
+    var s = [];
+    (entrees || []).forEach(function (e) { var src = SOURCES[e.source]; if (!src) return; if (src.jointure && s.indexOf(src.jointure) < 0) s.push(src.jointure); if (s.indexOf(e.source) < 0) s.push(e.source); });
+    return s;
+  }
+  function indexer(items) { var r = {}; (items || []).forEach(function (x) { if (x && x.id != null) r[x.id] = x; }); return r; }
+  function tablePennylane(source, items, refs) {
+    var src = SOURCES[source]; if (!src) return { entetes: [], lignes: [] };
+    return { entetes: src.colonnes.slice(), lignes: (items || []).map(function (x) { return src.ligne(x, refs || {}); }) };
+  }
+  function correspondancePennylane(source, champs) {
+    var src = SOURCES[source]; if (!src) return {};
+    var res = {}, pris = {};
+    champs.forEach(function (c) { var i = c.colonne_pennylane ? src.colonnes.indexOf(c.colonne_pennylane) : -1; if (i > -1) { res[c.cle] = i; pris[i] = true; } });
+    var auto = correspondanceAuto(src.colonnes, champs.filter(function (c) { return res[c.cle] == null; }));
+    Object.keys(auto).forEach(function (k) { if (!pris[auto[k]]) { res[k] = auto[k]; pris[auto[k]] = true; } });
+    return res;
+  }
+
+  /* ---------- Lecture des réponses des API publiques (partagée par le navigateur et n8n) ---------- */
+  function lireEntreprise(json, s) {
+    s = siren(s); var r = ((json && json.results) || []).filter(function (x) { return x.siren === s; })[0]; if (!r) return null;
+    var sg = r.siege || {};
+    return { siren: r.siren, nom: r.nom_complet || r.nom_raison_sociale || '', etat: r.etat_administratif === 'C' ? 'fermée' : 'active',
+      date_creation: date(r.date_creation), date_fermeture: date(r.date_fermeture), adresse: sg.adresse || '', code_postal: sg.code_postal || '',
+      naf: r.activite_principale || '', categorie: r.categorie_entreprise || '', effectif: r.tranche_effectif_salarie || '', nature_juridique: r.nature_juridique || '' };
+  }
+  function lireBodacc(json) {
+    return ((json && json.results) || []).map(function (r) {
+      var jug = {}; try { jug = r.jugement ? (typeof r.jugement === 'string' ? JSON.parse(r.jugement) : r.jugement) : {}; } catch (e) { jug = {}; }
+      var nature = jug.nature || jug.famille || r.typeavis_lib || '';
+      var a = { date: date(r.dateparution), date_jugement: date(jug.date), famille: r.familleavis || '', famille_libelle: r.familleavis_lib || '', nature: nature,
+        tribunal: r.tribunal || '', nom: r.commercant || '', url: r.url_complete || '', procedure_collective: r.familleavis === 'collective' };
+      var j = r.familleavis === 'collective' ? analyserJugement(jug.famille, jug.nature) : { procedure: null, type_jugement: null, procedure_en_cours: false };
+      Object.keys(j).forEach(function (k) { a[k] = j[k]; });
+      return a;
+    }).sort(function (x, y) { return (y.date ? +y.date : 0) - (x.date ? +x.date : 0); });
+  }
+  function urlEntreprise(s) { return 'https://recherche-entreprises.api.gouv.fr/search?q=' + siren(s) + '&per_page=1'; }
+  function urlBodacc(s, depuis) {
+    s = siren(s); depuis = date(depuis);
+    var where = 'registre like "' + s + '"' + (depuis ? " and dateparution >= date'" + depuis.getFullYear() + '-' + (depuis.getMonth() < 9 ? '0' : '') + (depuis.getMonth() + 1) + '-' + (depuis.getDate() < 10 ? '0' : '') + depuis.getDate() + "'" : '');
+    return 'https://bodacc-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/annonces-commerciales/records?where=' + encodeURIComponent(where) + '&order_by=dateparution%20desc&limit=50';
+  }
+
+  /* Encodage base64 UTF-8 sans dépendance (pièces jointes n8n). */
+  function base64(txt) {
+    var bytes = unescape(encodeURIComponent(String(txt))), tab = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/', out = '';
+    for (var i = 0; i < bytes.length; i += 3) {
+      var a = bytes.charCodeAt(i), b = bytes.charCodeAt(i + 1), c = bytes.charCodeAt(i + 2);
+      var t = (a << 16) | ((b || 0) << 8) | (c || 0);
+      out += tab[(t >> 18) & 63] + tab[(t >> 12) & 63] + (i + 1 < bytes.length ? tab[(t >> 6) & 63] : '=') + (i + 2 < bytes.length ? tab[t & 63] : '=');
+    }
+    return out;
+  }
+
   /* API simulée pour le mode démonstration et les tests automatiques (aucun appel réseau). */
   var apiDemo = {
     entreprise: function (s) {
@@ -303,7 +382,7 @@ var OutilCore = (function () {
   };
 
   return {
-    apiDemo: apiDemo, analyserJugement: analyserJugement, ajouterMois: ajouterMois, normaliser: normaliser, num: num, date: date, siren: siren, iban: iban, texte: texte, convertir: convertir,
+    apiDemo: apiDemo, analyserJugement: analyserJugement, ajouterMois: ajouterMois, SOURCES: SOURCES, sourcesNecessaires: sourcesNecessaires, indexer: indexer, tablePennylane: tablePennylane, correspondancePennylane: correspondancePennylane, lireEntreprise: lireEntreprise, lireBodacc: lireBodacc, urlEntreprise: urlEntreprise, urlBodacc: urlBodacc, base64: base64, normaliser: normaliser, num: num, date: date, siren: siren, iban: iban, texte: texte, convertir: convertir,
     sirenValide: sirenValide, ibanValide: ibanValide, tvaIntracomFR: tvaIntracomFR,
     formatEuro: formatEuro, formatNombre: formatNombre, formatDate: formatDate,
     joursEntre: joursEntre, aujourdhui: aujourdhui, creerOutils: creerOutils,
@@ -352,27 +431,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = OutilCore;
   var api = {
     entreprise: function (s) {
       s = C.siren(s); if (!s) return Promise.resolve(null);
-      return appel('https://recherche-entreprises.api.gouv.fr/search?q=' + s + '&per_page=1').then(function (j) {
-        var r = (j.results || []).filter(function (x) { return x.siren === s; })[0]; if (!r) return null;
-        var sg = r.siege || {};
-        return { siren: r.siren, nom: r.nom_complet || r.nom_raison_sociale || '', etat: r.etat_administratif === 'C' ? 'fermée' : 'active',
-          date_creation: C.date(r.date_creation), date_fermeture: C.date(r.date_fermeture), adresse: sg.adresse || '', code_postal: sg.code_postal || '',
-          naf: r.activite_principale || '', categorie: r.categorie_entreprise || '', effectif: r.tranche_effectif_salarie || '', nature_juridique: r.nature_juridique || '' };
-      }).catch(function () { nbErreursApi++; return null; });
+      return appel(C.urlEntreprise(s)).then(function (j) { return C.lireEntreprise(j, s); }).catch(function () { nbErreursApi++; return null; });
     },
     bodacc: function (s, opts) {
       s = C.siren(s); if (!s) return Promise.resolve([]);
-      var depuis = C.date((opts || {}).depuis);
-      var where = 'registre like "' + s + '"' + (depuis ? ' and dateparution >= date\'' + depuis.getFullYear() + '-' + String(depuis.getMonth() + 1).padStart(2, '0') + '-' + String(depuis.getDate()).padStart(2, '0') + '\'' : '');
-      return appel('https://bodacc-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/annonces-commerciales/records?where=' + encodeURIComponent(where) + '&order_by=dateparution%20desc&limit=50').then(function (j) {
-        return (j.results || []).map(function (r) {
-          var jug = {}; try { jug = r.jugement ? JSON.parse(r.jugement) : {}; } catch (e) { jug = {}; }
-          var nature = jug.nature || jug.famille || r.typeavis_lib || '';
-          return Object.assign({ date: C.date(r.dateparution), date_jugement: C.date(jug.date), famille: r.familleavis || '', famille_libelle: r.familleavis_lib || '', nature: nature,
-            tribunal: r.tribunal || '', nom: r.commercant || '', url: r.url_complete || '', procedure_collective: r.familleavis === 'collective' },
-            r.familleavis === 'collective' ? C.analyserJugement(jug.famille, jug.nature) : { procedure: null, type_jugement: null, procedure_en_cours: false });
-        });
-      }).catch(function () { nbErreursApi++; return []; });
+      return appel(C.urlBodacc(s, (opts || {}).depuis)).then(C.lireBodacc).catch(function () { nbErreursApi++; return []; });
     }
   };
 
@@ -539,6 +602,51 @@ if (typeof module !== 'undefined' && module.exports) module.exports = OutilCore;
     zone.scrollIntoView({ behavior: 'smooth' });
   }
 
+
+  /* ---------- Intégration dans l'environnement de travail ---------- */
+  var FREQ = { quotidienne: { txt: 'chaque jour ouvré', rrule: 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR' }, hebdomadaire: { txt: 'chaque lundi', rrule: 'FREQ=WEEKLY;BYDAY=MO' }, mensuelle: { txt: 'le 1er de chaque mois', rrule: 'FREQ=MONTHLY;BYMONTHDAY=1' } };
+  function freq() { return FREQ[O.frequence] || FREQ.hebdomadaire; }
+  function rappelAgenda() {
+    var p = function (n) { return (n < 10 ? '0' : '') + n; }, d = new Date(); d.setDate(d.getDate() + 1);
+    var jour = d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()), maintenant = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+    var url = location.href.split('#')[0].split('?')[0];
+    var t = function (s) { return String(s || '').replace(/\\/g, '\\\\').replace(/[,;]/g, function (m) { return '\\' + m; }).replace(/\n/g, '\\n'); };
+    var ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//outils-pme//FR', 'CALSCALE:GREGORIAN', 'BEGIN:VEVENT', 'UID:' + (O.slug || 'outil') + '-' + Date.now() + '@outils-pme', 'DTSTAMP:' + maintenant,
+      'DTSTART:' + jour + 'T090000', 'DTEND:' + jour + 'T091500', 'RRULE:' + freq().rrule, 'SUMMARY:' + t('Lancer : ' + (O.titre || 'outil')),
+      'DESCRIPTION:' + t((O.promesse || '') + '\n\n1. Exportez vos données depuis Pennylane\n2. Ouvrez l\'outil : ' + url + '\n3. Déposez les fichiers et lancez l\'analyse'), 'URL:' + url,
+      'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + t('Lancer : ' + (O.titre || 'outil')), 'TRIGGER:-PT10M', 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+    telecharger(ics, (O.slug || 'outil') + '-rappel.ics', 'text/calendar;charset=utf-8');
+  }
+  function blocAutomatiser() {
+    var f = freq().txt, auto = !!O.automatisation;
+    var optionN8n = auto ? el('div', { class: 'option' }, [
+      el('h3', { text: 'Automatique, dans n8n' }),
+      el('p', { text: 'Le workflow lit vos données Pennylane ' + f + ' (en lecture seule), applique exactement le même calcul que cette page et vous envoie un email uniquement s\'il y a du nouveau, avec le détail en pièce jointe. Vos données restent dans votre n8n (auto-hébergé, ou n8n Cloud hébergé en Europe) et votre messagerie.' }),
+      el('a', { class: 'btn btn-primary', href: O.automatisation, download: O.automatisation, text: 'Télécharger le workflow n8n' }),
+      el('ol', {}, [
+        el('li', { html: 'Dans n8n : <strong>Workflows</strong> &gt; <strong>Import from file</strong>, choisissez le fichier téléchargé.' }),
+        el('li', { html: 'Sur les nœuds <strong>Pennylane</strong>, créez une connexion <strong>Header Auth</strong> : nom <code>Authorization</code>, valeur <code>Bearer</code> suivi de votre token API Pennylane (droits en lecture seule).' }),
+        el('li', { html: 'Sur le nœud <strong>Envoyer le rapport</strong>, connectez votre messagerie (SMTP, ou remplacez par Gmail, Outlook, Slack ou Teams).' }),
+        el('li', { html: 'Dans <strong>⚙️ Réglages</strong> : destinataires, expéditeur et réglages de l\'outil (les mêmes que sur cette page).' }),
+        el('li', { html: 'Testez avec <strong>Execute workflow</strong>, puis activez le workflow. La fréquence se change dans le nœud <strong>Planification</strong>.' })
+      ])
+    ]) : el('div', { class: 'option' }, [
+      el('h3', { text: 'Automatique, dans n8n' }),
+      el('p', { class: 'note', text: 'Cet outil utilise un fichier qui ne vient pas de Pennylane : il n\'existe pas de version automatique. Utilisez le rappel d\'agenda ci-contre.' })
+    ]);
+    var optionAgenda = el('div', { class: 'option' }, [
+      el('h3', { text: 'Rappel dans votre agenda' }),
+      el('p', { text: 'Un rendez-vous récurrent ' + f + ' avec le lien de l\'outil et les 3 étapes à suivre : 2 minutes pour faire le point, sans rien installer.' }),
+      el('button', { class: 'btn btn-ghost', type: 'button', text: 'Ajouter à mon agenda (.ics)', onclick: rappelAgenda }),
+      el('p', { class: 'note', text: 'Compatible Outlook, Google Agenda et Apple Calendrier.' })
+    ]);
+    return el('section', { class: 'carte automatiser', id: 'automatiser' }, [
+      el('h2', { text: 'L\'intégrer à votre quotidien' }),
+      el('p', { text: 'Recevez une alerte au bon moment plutôt que d\'y penser : ' + (O.declenchement || 'l\'outil se lance tout seul et ne vous écrit que s\'il trouve quelque chose.') }),
+      el('div', { class: 'options' }, [optionN8n, optionAgenda])
+    ]);
+  }
+
   /* ---------- Construction de la page ---------- */
   function blocEntree(e) {
     var zoneMap = el('div', { class: 'mapping' }), etiquette = el('span', { class: 'note', text: 'Aucun fichier. Formats acceptés : CSV, XLSX.' });
@@ -592,7 +700,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = OutilCore;
       el('div', { class: 'tags' }, [el('span', { class: 'tag', text: '100 % local' }), el('span', { class: 'tag', text: 'Gratuit' }), el('span', { class: 'tag', text: 'Compatible Pennylane' })]),
       el('h1', { text: O.titre || '' }), el('p', { class: 'promesse', text: O.promesse || '' }),
       el('div', { class: 'confidentialite' }, [el('strong', { text: 'Vos données ne quittent pas votre ordinateur. ' }), 'Les fichiers sont lus par votre navigateur ; aucun serveur ne les reçoit, aucun compte n\'est nécessaire.' + apiTxt]),
-      el('div', { class: 'actions' }, [el('button', { class: 'btn btn-primary', text: 'Essayer avec des données d\'exemple', onclick: function () { lancer(true); } }), el('a', { class: 'btn btn-ghost', href: '#guide', text: 'Comment exporter depuis Pennylane ?' })])
+      el('div', { class: 'actions' }, [el('button', { class: 'btn btn-primary', text: 'Essayer avec des données d\'exemple', onclick: function () { lancer(true); } }), el('a', { class: 'btn btn-ghost', href: '#automatiser', text: O.automatisation ? 'L\'automatiser dans n8n' : 'Programmer un rappel' }), el('a', { class: 'btn btn-ghost', href: '#guide', text: 'Comment exporter depuis Pennylane ?' })])
     ]));
     if ((O.etapes || []).length) app.appendChild(el('section', { class: 'carte' }, [el('h2', { text: 'Ce que fait l\'outil' }), el('ol', {}, O.etapes.map(function (t) { return el('li', { text: t }); }))]));
     app.appendChild(el('section', { class: 'carte' }, [el('h2', { text: '1. Vos fichiers' })].concat((O.entrees || []).map(blocEntree))));
@@ -600,6 +708,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = OutilCore;
     app.appendChild(el('div', { class: 'lancement' }, [el('button', { id: 'lancer', class: 'btn btn-primary btn-grand', text: 'Lancer l\'analyse', onclick: function () { lancer(false); } }),
       el('div', { id: 'progression', class: 'progression', hidden: 'hidden' }, [el('span'), el('div', {}, [el('i')])])]));
     app.appendChild(el('div', { id: 'resultats' }));
+    app.appendChild(blocAutomatiser());
     if (O.guide_html) app.appendChild(el('section', { class: 'carte guide', id: 'guide', html: '<h2>Guide</h2>' + O.guide_html }));
     if (O.limites) app.appendChild(el('section', { class: 'carte' }, [el('h2', { text: 'Limites et précautions' }), el('p', { text: O.limites }), el('p', { class: 'note', text: 'Outil gratuit fourni sans garantie. Vérifiez les résultats avant toute décision ; il ne remplace pas l\'avis de votre expert-comptable.' })]));
     app.appendChild(el('footer', {}, [document.createTextNode('Outil gratuit créé par ' + (O.signature || '')), O.lien_profil ? el('a', { href: O.lien_profil, target: '_blank', rel: 'noopener', text: ' · Me suivre sur LinkedIn' }) : null, O.repo_url ? el('a', { href: O.repo_url, target: '_blank', rel: 'noopener', text: ' · Code source' }) : null]));
