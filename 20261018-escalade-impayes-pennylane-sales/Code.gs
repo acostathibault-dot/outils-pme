@@ -44,7 +44,7 @@ const CONFIG = {
  * FONCTION PRINCIPALE : Exécutée chaque matin
  */
 function executerEscaladeImpayes() {
-  const lock = LockService.getScriptPropertiesLock();
+  const lock = LockService.getScriptLock();
   if (!lock.tryLock(10000)) return; // Évite les exécutions simultanées
 
   try {
