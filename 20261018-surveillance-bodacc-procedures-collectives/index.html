@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Surveillance BODACC &amp; Procédures Collectives Clients</title>
+<meta name="description" content="Détectez instantanément les clients en procédure collective (redressement, liquidation) pour déclarer vos créances avant le délai légal de 2 mois.">
+<meta property="og:title" content="Surveillance BODACC &amp; Procédures Collectives Clients">
+<meta property="og:description" content="Détectez instantanément les clients en procédure collective (redressement, liquidation) pour déclarer vos créances avant le délai légal de 2 mois. Gratuit, 100 % local : vos données ne quittent pas votre ordinateur.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_runtime/app.css?v=20261018">
+</head>
+<body>
+<div id="app"></div>
+<noscript>Cet outil nécessite JavaScript.</noscript>
+<script src="../_runtime/xlsx.full.min.js"></script>
+<script>window.OUTIL = {"titre":"Surveillance BODACC & Procédures Collectives Clients","slug":"20261018-surveillance-bodacc-procedures-collectives","promesse":"Détectez instantanément les clients en procédure collective (redressement, liquidation) pour déclarer vos créances avant le délai légal de 2 mois.","gain_temps":"Environ 2 h par mois et évite la perte définitive de créances non déclarées (estimation)","etapes":["Analyse la liste de vos clients et le détail des factures non soldées","Interroge en temps réel les API officielles BODACC et Recherche d'entreprises (INSEE)","Identifie les procédures collectives, calcule le compte à rebours de déclaration (60 jours) et isole le montant total des créances à risque"],"entrees":[{"id":"clients","libelle":"Export de la base clients","obligatoire":true,"description":"Dans Pennylane, depuis le menu de gestion des tiers ou clients, exportez la liste des clients contenant les numéros SIREN ou SIRET (CSV ou Excel).","champs":[{"cle":"nom_client","libelle":"Nom du client","type":"texte","motscles":["client","nom","raison sociale","nom du client","company","customer"],"obligatoire":true},{"cle":"siren","libelle":"SIREN ou SIRET","type":"siren","motscles":["siren","siret","numéro siren","siren/siret","company_id","vat_number"],"obligatoire":true},{"cle":"code_client","libelle":"Code client","type":"texte","motscles":["code client","code tiers","numéro client","client_code","ref client"],"obligatoire":false}],"description_html":"Dans Pennylane, depuis le menu de gestion des tiers ou clients, exportez la liste des clients contenant les numéros SIREN ou SIRET (CSV ou Excel)."},{"id":"factures_non_soldees","libelle":"Export des factures clients non soldées","obligatoire":true,"description":"Dans Pennylane, depuis la liste des factures clients, filtrez sur les factures non soldées ou en retard et lancez l'export (CSV ou Excel).","champs":[{"cle":"nom_client","libelle":"Nom du client","type":"texte","motscles":["client","nom du client","tiers","customer","raison sociale"],"obligatoire":true},{"cle":"siren","libelle":"SIREN","type":"siren","motscles":["siren","siret","numéro siren","siren/siret","company_id"],"obligatoire":false},{"cle":"numero_facture","libelle":"Numéro de facture","type":"texte","motscles":["numéro","n° facture","facture","invoice number","num_facture"],"obligatoire":false},{"cle":"date_facture","libelle":"Date de facture","type":"date","motscles":["date","date de facture","date d'émission","invoice date","created_at"],"obligatoire":false},{"cle":"echeance","libelle":"Date d'échéance","type":"date","motscles":["échéance","date d'échéance","due date","deadline","date echeance"],"obligatoire":false},{"cle":"restant_du","libelle":"Restant dû (TTC)","type":"nombre","motscles":["restant dû","reste à payer","solde","montant restant","remaining","solde ttc"],"obligatoire":true}],"description_html":"Dans Pennylane, depuis la liste des factures clients, filtrez sur les factures non soldées ou en retard et lancez l'export (CSV ou Excel)."}],"parametres":[{"cle":"delai_declaration_jours","libelle":"Délai légal de déclaration (jours)","type":"nombre","defaut":"60","aide":"Le délai standard est de 60 jours à compter de la publication BODACC (120 jours pour créanciers hors France métropolitaine).","options":[],"colonnes":[]},{"cle":"seuil_urgence_jours","libelle":"Seuil d'urgence extrême (jours restants)","type":"nombre","defaut":"15","aide":"Déclenche un niveau d'alerte maximale si la date limite de déclaration intervient dans moins de X jours.","options":[],"colonnes":[]},{"cle":"alerter_radiations","libelle":"Alerter aussi sur les entreprises radiées / fermées","type":"booleen","defaut":"true","aide":"Signale les clients dont le SIREN est indiqué comme fermé ou radié dans la base officielle INSEE.","options":[],"colonnes":[]}],"api":["bodacc","entreprises"],"resultats":"KPI : Créances exposées en procédure collective (€ TTC), Nombre de clients sous procédure collective, Nombre de procédures à déclarer d'urgence (\u003c 15 jours restants), Créances sur entreprises radiées (€ TTC). Alertes : Alerte Rouge CRITIQUE par client en Redressement/Liquidation avec compte à rebours jours J-X avant prescription et lien direct d'accès à l'annonce BODACC ; Alerte Orange pour les sociétés fermées/radiées sans publication BODACC directe. Tableau : Répertoire exhaustif des clients à risque (Client, SIREN, Statut INSEE/BODACC, Type de procédure [Sauvegarde / Redressement / Liquidation / Radiation], Date d'ouverture, Date limite de déclaration, Jours restants, Total restant dû TTC, Nombre de factures impactées). Graphique : Répartition du solde client non soldé par état de santé juridique (Sain, Sauvegarde, Redressement, Liquidation, Radié).","cas_concret":"Une PME de prestations de services dispose de 140 000 € d'en-cours clients non soldés répartis sur 62 clients. L'outil croise les SIREN avec le BODACC et l'INSEE : 2 clients sont sous procédure collective. Client A (Redressement Judiciaire publié au BODACC il y a 20 jours) doit 12 500 € TTC (il reste 40 jours pour déclarer la créance au mandataire). Client B (Liquidation Judiciaire publiée il y a 52 jours) doit 4 800 € TTC (urgence absolue : il ne reste que 8 jours pour adresser la déclaration de créance). Sans cet outil, le dirigeant dépassait le délai des 60 jours pour le Client B et perdait tout recours légal.","limites":"Repose sur la présence de numéros SIREN valides dans vos données Pennylane. L'actualisation du BODACC comporte un délai légal de publication de 24h à 72h après le jugement.","signature":"Thibault Acosta-Mendez","lien_profil":"www.linkedin.com/in/thibaultacosta-mendez","repo_url":"https://github.com/acostathibault-dot/outils-pme/tree/main/20261018-surveillance-bodacc-procedures-collectives","guide_html":"\u003ch2>Guide d'utilisation : Surveillance BODACC &amp; Procédures Collectives Clients\u003c/h2>\n\u003ch3>Introduction\u003c/h3>\n\u003cp>En tant que dirigeant de PME, vous n'avez pas de temps à perdre pour surveiller la santé financière de vos clients. Cette mini-application gratuite détecte instantanément vos clients en procédure collective (redressement, liquidation).\u003c/p>\n\u003cp>Vous gagnez environ 2 heures par mois et évitez la perte définitive de vos créances en agissant avant le délai légal de 2 mois.\u003c/p>\n\u003cp>---\u003c/p>\n\u003ch3>Exporter vos données\u003c/h3>\n\u003cp>Pour lancer l'analyse, vous avez besoin de deux fichiers exportés depuis votre logiciel (par exemple, Pennylane).\u003c/p>\n\u003cp>*Note : selon votre version du logiciel, l'intitulé exact des menus peut légèrement varier.*\u003c/p>\n\u003ch4>1. L'export de la base clients\u003c/h4>\n\u003cul>\u003cli>Depuis le menu de gestion des tiers ou de vos clients, utilisez le bouton d'export pour télécharger la liste de vos clients.\u003c/li>\u003cli>\u003cstrong>Format conseillé :\u003c/strong> CSV ou Excel.\u003c/li>\u003cli>\u003cstrong>Champs obligatoires :\u003c/strong> Nom du client, SIREN ou SIRET, Code client.\u003c/li>\u003c/ul>\n\u003ch4>2. L'export des factures clients non soldées\u003c/h4>\n\u003cul>\u003cli>Depuis la liste de vos factures clients, filtrez sur les factures non soldées ou en retard.\u003c/li>\u003cli>Utilisez le bouton d'export.\u003c/li>\u003cli>\u003cstrong>Format conseillé :\u003c/strong> CSV ou Excel.\u003c/li>\u003cli>\u003cstrong>Champs obligatoires :\u003c/strong> Nom du client, SIREN, Numéro de facture, Date de facture, Date d'échéance, Restant dû (TTC).\u003c/li>\u003c/ul>\n\u003cp>---\u003c/p>\n\u003ch3>Utiliser l'outil\u003c/h3>\n\u003col>\u003cli>Ouvrez l'application et cliquez sur le bouton \u003cstrong>Essayer avec des données d'exemple\u003c/strong> si vous souhaitez tester immédiatement l'outil sans vos fichiers.\u003c/li>\u003cli>Déposez vos deux fichiers (base clients et factures non soldées) dans les zones prévues à cet effet.\u003c/li>\u003cli>Vérifiez la correspondance des colonnes (l'outil les détecte automatiquement).\u003c/li>\u003cli>Ajustez vos \u003cstrong>Réglages\u003c/strong> si nécessaire : * Le délai légal de déclaration (en jours). * Le seuil d'urgence extrême (en jours restants). * L'option pour alerter aussi sur les entreprises radiées ou fermées.\u003c/li>\u003cli>Cliquez sur \u003cstrong>Lancer l'analyse\u003c/strong>.\u003c/li>\u003cli>Une fois les résultats affichés, cliquez sur \u003cstrong>Exporter en Excel\u003c/strong> pour conserver un double de travail.\u003c/li>\u003c/ol>\n\u003cp>---\u003c/p>\n\u003ch3>Lire les résultats\u003c/h3>\n\u003cp>L'écran de résultats vous offre une vision claire et immédiate des risques :\u003c/p>\n\u003ch4>Les indicateurs clés (KPI)\u003c/h4>\n\u003cul>\u003cli>\u003cstrong>Créances exposées en procédure collective (€ TTC) :\u003c/strong> Le montant total d'argent dû par des clients officiellement en difficulté.\u003c/li>\u003cli>\u003cstrong>Nombre de clients sous procédure collective :\u003c/strong> Le volume d'entreprises concernées.\u003c/li>\u003cli>\u003cstrong>Nombre de procédures à déclarer d'urgence (&lt; 15 jours restants) :\u003c/strong> Les dossiers brûlants qui nécessitent une action immédiate.\u003c/li>\u003cli>\u003cstrong>Créances sur entreprises radiées (€ TTC) :\u003c/strong> Le montant bloqué auprès de sociétés fermées.\u003c/li>\u003c/ul>\n\u003ch4>Les alertes à traiter\u003c/h4>\n\u003cul>\u003cli>\u003cstrong>Alerte Rouge (Critique) :\u003c/strong> Pour chaque client en redressement ou liquidation, un compte à rebours indique le nombre de jours J-X avant la prescription. Un lien direct vous permet d'accéder à l'annonce officielle sur le BODACC.\u003c/li>\u003cli>\u003cstrong>Alerte Orange :\u003c/strong> Concerne les sociétés fermées ou radiées à l'INSEE, sans publication BODACC directe.\u003c/li>\u003c/ul>\n\u003ch4>Le tableau et le graphique\u003c/h4>\n\u003cul>\u003cli>\u003cstrong>Répertoire exhaustif des clients à risque :\u003c/strong> Un tableau détaillé reprenant le nom du client, son SIREN, son statut INSEE/BODACC, le type de procédure (Sauvegarde, Redressement, Liquidation, Radiation), la date d'ouverture, la date limite de déclaration, les jours restants, le total restant dû TTC et le nombre de factures impactées.\u003c/li>\u003cli>\u003cstrong>Graphique de répartition :\u003c/strong> Visualisez le solde client non soldé selon l'état de santé juridique (Sain, Sauvegarde, Redressement, Liquidation, Radié).\u003c/li>\u003c/ul>\n\u003cp>\u003cstrong>Action concrète à mener :\u003c/strong> Dès qu'une Alerte Rouge apparaît, rédigez et envoyez immédiatement votre déclaration de créance au mandataire désigné avant la date limite.\u003c/p>\n\u003cp>---\u003c/p>\n\u003ch3>Cas concret\u003c/h3>\n\u003cp>Une PME de prestations de services dispose de 140 000 € d'en-cours clients non soldés répartis sur 62 clients. L'outil croise les SIREN avec le BODACC et l'INSEE :\u003c/p>\n\u003cul>\u003cli>\u003cstrong>Client A\u003c/strong> (Redressement Judiciaire publié au BODACC il y a 20 jours) doit 12 500 € TTC. Il reste 40 jours pour déclarer la créance au mandataire.\u003c/li>\u003cli>\u003cstrong>Client B\u003c/strong> (Liquidation Judiciaire publiée il y a 52 jours) doit 4 800 € TTC. C'est une \u003cstrong>urgence absolue\u003c/strong> : il ne reste que 8 jours pour adresser la déclaration de créance.\u003c/li>\u003c/ul>\n\u003cp>*Sans cet outil, le dirigeant dépassait le délai des 60 jours pour le Client B et perdait tout recours légal.*\u003c/p>\n\u003cp>---\u003c/p>\n\u003ch3>Confidentialité\u003c/h3>\n\u003cul>\u003cli>\u003cstrong>Sécurité des données :\u003c/strong> Vos fichiers sont lus directement par votre navigateur web. Rien n'est jamais envoyé sur un serveur distant.\u003c/li>\u003cli>\u003cstrong>Réglages :\u003c/strong> Vos préférences de réglages sont mémorisées uniquement sur votre propre ordinateur.\u003c/li>\u003cli>\u003cstrong>Vérifications en ligne :\u003c/strong> Seuls les numéros SIREN (qui sont des données publiques) sont interrogés auprès des API officielles de l'État (BODACC et INSEE) pour vérifier la santé des entreprises.\u003c/li>\u003c/ul>\n\u003cp>---\u003c/p>\n\u003ch3>Questions fréquentes\u003c/h3>\n\u003ch4>1. Que se passe-t-il si un client n'a pas de numéro SIREN dans mon fichier ?\u003c/h4>\n\u003cp>L'outil repose sur la présence de numéros SIREN valides dans vos données. Si le numéro est absent ou erroné, l'entreprise ne pourra pas être croisée avec les fichiers officiels du BODACC et de l'INSEE.\u003c/p>\n\u003ch4>2. Pourquoi vois-je un décalage de quelques jours avec le jugement ?\u003c/h4>\n\u003cp>L'actualisation officielle du BODACC comporte un délai légal de publication de 24h à 72h après le prononcé du jugement par le tribunal.\u003c/p>\n\u003ch4>3. Que dois-je faire une fois l'alerte détectée ?\u003c/h4>\n\u003cp>Vous devez télécharger ou consulter l'avis BODACC, récupérer les coordonnées du mandataire judiciaire nommé, et lui déclarer officiellement votre créance par courrier recommandé avec accusé de réception (ou via le portail dédié) avant la date limite indiquée par l'outil.\u003c/p>"};</script>
+<script>
+function genererExemple() {
+  function jour(decalage) {
+    var d = new Date();
+    d.setDate(d.getDate() + decalage);
+    return d.toISOString().slice(0, 10);
+  }
+
+  // 12 SIREN autorisés
+  var listeClients = [
+    { nom: 'Alpha Ingénierie SAS', siren: '812345684', code: 'CLI-001' },
+    { nom: 'Bâti Ouest Construction', siren: '812345726', code: 'CLI-002' },
+    { nom: 'Comptoir Logistique Express', siren: '812345775', code: 'CLI-003' }, // Fin 5
+    { nom: 'Delta Menuiserie & Agencement', siren: '812345817', code: 'CLI-004' }, // Fin 7 -> Procédure BODACC
+    { nom: 'Epsilon Tech Solutions', siren: '812345866', code: 'CLI-005' },
+    { nom: 'Fonderie Moderne SAS', siren: '812345908', code: 'CLI-006' },
+    { nom: 'Grand Hôtel du Port', siren: '812345957', code: 'CLI-007' }, // Fin 7 -> Procédure BODACC
+    { nom: 'Horizon Propreté Services', siren: '812345999', code: 'CLI-008' },
+    { nom: 'Imprimerie Graphique SARL', siren: '812346013', code: 'CLI-009' }, // Fin 3 -> Procédure BODACC (urgence)
+    { nom: 'Jardinage & Espaces Verts', siren: '812346062', code: 'CLI-010' },
+    { nom: 'Kiosque Numérique France', siren: '823456710', code: 'CLI-011' }, // Fin 0 -> Fermée/Radiée
+    { nom: 'Laboratoire Bio Santé', siren: '823456850', code: 'CLI-012' }     // Fin 0 -> Fermée/Radiée
+  ];
+
+  var clients = listeClients.map(function (c) {
+    return {
+      nom_client: c.nom,
+      siren: c.siren,
+      code_client: c.code
+    };
+  });
+
+  // Factures non soldées réparties sur les clients
+  var factures = [
+    { nom_client: 'Alpha Ingénierie SAS', siren: '812345684', numero_facture: 'FAC-2024-001', date_facture: jour(-45), echeance: jour(-15), restant_du: 4250.00 },
+    { nom_client: 'Alpha Ingénierie SAS', siren: '812345684', numero_facture: 'FAC-2024-002', date_facture: jour(-20), echeance: jour(10), restant_du: 1800.50 },
+    { nom_client: 'Bâti Ouest Construction', siren: '812345726', numero_facture: 'FAC-2024-003', date_facture: jour(-60), echeance: jour(-30), restant_du: 6200.00 },
+    { nom_client: 'Comptoir Logistique Express', siren: '812345775', numero_facture: 'FAC-2024-004', date_facture: jour(-15), echeance: jour(15), restant_du: 3100.00 },
+    // Procédure collective : Delta Menuiserie (finissant par 7)
+    { nom_client: 'Delta Menuiserie & Agencement', siren: '812345817', numero_facture: 'FAC-2024-005', date_facture: jour(-70), echeance: jour(-40), restant_du: 8400.00 },
+    { nom_client: 'Delta Menuiserie & Agencement', siren: '812345817', numero_facture: 'FAC-2024-006', date_facture: jour(-35), echeance: jour(-5), restant_du: 4100.00 },
+    { nom_client: 'Epsilon Tech Solutions', siren: '812345866', numero_facture: 'FAC-2024-007', date_facture: jour(-10), echeance: jour(20), restant_du: 2950.00 },
+    { nom_client: 'Fonderie Moderne SAS', siren: '812345908', numero_facture: 'FAC-2024-008', date_facture: jour(-80), echeance: jour(-50), restant_du: 1250.00 },
+    // Procédure collective : Grand Hôtel (finissant par 7)
+    { nom_client: 'Grand Hôtel du Port', siren: '812345957', numero_facture: 'FAC-2024-009', date_facture: jour(-40), echeance: jour(-10), restant_du: 5400.00 },
+    { nom_client: 'Horizon Propreté Services', siren: '812345999', numero_facture: 'FAC-2024-010', date_facture: jour(-25), echeance: jour(5), restant_du: 1750.00 },
+    // Procédure collective urgente : Imprimerie Graphique (finissant par 3)
+    { nom_client: 'Imprimerie Graphique SARL', siren: '812346013', numero_facture: 'FAC-2024-011', date_facture: jour(-90), echeance: jour(-60), restant_du: 7850.00 },
+    { nom_client: 'Imprimerie Graphique SARL', siren: '812346013', numero_facture: 'FAC-2024-012', date_facture: jour(-55), echeance: jour(-25), restant_du: 3200.00 },
+    { nom_client: 'Jardinage & Espaces Verts', siren: '812346062', numero_facture: 'FAC-2024-013', date_facture: jour(-12), echeance: jour(18), restant_du: 980.00 },
+    // Entreprise fermée : Kiosque Numérique (finissant par 0)
+    { nom_client: 'Kiosque Numérique France', siren: '823456710', numero_facture: 'FAC-2024-014', date_facture: jour(-110), echeance: jour(-80), restant_du: 3600.00 },
+    // Entreprise fermée : Laboratoire Bio Santé (finissant par 0)
+    { nom_client: 'Laboratoire Bio Santé', siren: '823456850', numero_facture: 'FAC-2024-015', date_facture: jour(-65), echeance: jour(-35), restant_du: 4500.00 }
+  ];
+
+  return {
+    clients: clients,
+    factures_non_soldees: factures
+  };
+}
+
+async function analyser(donnees, params, outils) {
+  var clientsRaw = donnees.clients || [];
+  var facturesRaw = donnees.factures_non_soldees || [];
+
+  var delaiLegalJours = outils.num(params.delai_declaration_jours) || 60;
+  var seuilUrgenceJours = outils.num(params.seuil_urgence_jours) || 15;
+  var alerterRadiations = params.alerter_radiations !== false;
+
+  // Cas données vides
+  if (clientsRaw.length === 0 && facturesRaw.length === 0) {
+    return {
+      kpis: [
+        { libelle: 'Créances exposées (procédures)', valeur: 0, format: 'euro', niveau: 'ok' },
+        { libelle: 'Clients en procédure', valeur: 0, format: 'nombre', niveau: 'ok' },
+        { libelle: 'Déclarations urgentes', valeur: 0, format: 'nombre', niveau: 'ok' },
+        { libelle: 'Créances entreprises radiées', valeur: 0, format: 'euro', niveau: 'ok' }
+      ],
+      alertes: [{
+        niveau: 'info',
+        titre: 'Aucune donnée importée',
+        detail: 'Veuillez déposer l\'export des clients Pennylane et le détail des factures non soldées pour lancer la détection BODACC et INSEE.'
+      }],
+      tableaux: [{
+        id: 'procedures_clients',
+        titre: 'Répertoire exhaustif des clients à risque',
+        description: 'État juridique BODACC & INSEE et calendrier de déclaration de créances',
+        colonnes: [
+          { cle: 'nom_client', libelle: 'Client', format: 'texte' },
+          { cle: 'siren', libelle: 'SIREN', format: 'texte' },
+          { cle: 'statut_juridique', libelle: 'Statut détecté', format: 'niveau' },
+          { cle: 'type_procedure', libelle: 'Procédure / Motif', format: 'texte' },
+          { cle: 'date_ouverture', libelle: 'Date publication BODACC', format: 'date' },
+          { cle: 'date_limite', libelle: 'Date limite déclaration', format: 'date' },
+          { cle: 'jours_restants', libelle: 'Jours restants', format: 'jours' },
+          { cle: 'montant_expose', libelle: 'Restant dû TTC', format: 'euro' },
+          { cle: 'nb_factures', libelle: 'Factures', format: 'nombre' },
+          { cle: 'lien_bodacc', libelle: 'Annonce', format: 'lien' }
+        ],
+        lignes: []
+      }],
+      graphiques: []
+    };
+  }
+
+  // 1. Référentiel des clients (normalisation nom & SIREN)
+  var mapSirenParNom = {};
+  var mapClients = {};
+
+  clientsRaw.forEach(function (c) {
+    var siren = outils.sirenValide(c.siren) ? String(c.siren).trim() : null;
+    var nom = outils.texte(c.nom_client).trim();
+    if (nom) {
+      var normNom = outils.normaliser(nom);
+      if (siren) mapSirenParNom[normNom] = siren;
+      if (!mapClients[siren || normNom]) {
+        mapClients[siren || normNom] = {
+          nom: nom,
+          siren: siren,
+          code: c.code_client || ''
+        };
+      }
+    }
+  });
+
+  // 2. Regroupement des factures non soldées
+  var encoursParClient = {}; // clé = siren ou normNom
+  var totalFactures = facturesRaw.filter(function (f) {
+    return (outils.num(f.restant_du) || 0) > 0;
+  });
+
+  totalFactures.forEach(function (f) {
+    var mont = outils.arrondi(outils.num(f.restant_du) || 0, 2);
+    var siren = outils.sirenValide(f.siren) ? String(f.siren).trim() : null;
+    var nom = outils.texte(f.nom_client).trim();
+    var normNom = outils.normaliser(nom);
+
+    if (!siren && normNom && mapSirenParNom[normNom]) {
+      siren = mapSirenParNom[normNom];
+    }
+
+    var refCle = siren || normNom || 'inconnu';
+    if (!encoursParClient[refCle]) {
+      encoursParClient[refCle] = {
+        nom: nom || (mapClients[refCle] ? mapClients[refCle].nom : 'Client inconnu'),
+        siren: siren,
+        total_ttc: 0,
+        factures: []
+      };
+    }
+
+    encoursParClient[refCle].total_ttc = outils.arrondi(encoursParClient[refCle].total_ttc + mont, 2);
+    encoursParClient[refCle].factures.push(f);
+  });
+
+  // Compléter avec les clients qui n'auraient pas de factures si présents dans clientsRaw
+  Object.keys(mapClients).forEach(function (k) {
+    var cl = mapClients[k];
+    var refCle = cl.siren || outils.normaliser(cl.nom);
+    if (!encoursParClient[refCle]) {
+      encoursParClient[refCle] = {
+        nom: cl.nom,
+        siren: cl.siren,
+        total_ttc: 0,
+        factures: []
+      };
+    }
+  });
+
+  // 3. Extraction et dédoublonnage des SIREN pour interrogation API
+  var sirensUniques = [];
+  Object.keys(encoursParClient).forEach(function (k) {
+    var s = encoursParClient[k].siren;
+    if (s && outils.sirenValide(s) && sirensUniques.indexOf(s) === -1) {
+      sirensUniques.push(s);
+    }
+  });
+
+  var tropDeSirens = sirensUniques.length > 300;
+  var sirensAInterroger = sirensUniques.slice(0, 300);
+
+  // 4. Interrogation séquentielle des API
+  var resultatsEntreprise = {};
+  var resultatsBodacc = {};
+
+  for (var i = 0; i < sirensAInterroger.length; i++) {
+    var sirenCourant = sirensAInterroger[i];
+    outils.progression('Vérification BODACC & INSEE (' + (i + 1) + '/' + sirensAInterroger.length + ')', (i + 1) / sirensAInterroger.length);
+
+    try {
+      if (outils.api && outils.api.entreprise) {
+        var infoEnt = await outils.api.entreprise(sirenCourant);
+        resultatsEntreprise[sirenCourant] = infoEnt;
+      }
+    } catch (e) {
+      resultatsEntreprise[sirenCourant] = null;
+    }
+
+    try {
+      if (outils.api && outils.api.bodacc) {
+        var annonces = await outils.api.bodacc(sirenCourant, { depuis: outils.ajouterMois(outils.aujourdhui, -12) });
+        resultatsBodacc[sirenCourant] = Array.isArray(annonces) ? annonces : [];
+      }
+    } catch (e) {
+      resultatsBodacc[sirenCourant] = [];
+    }
+  }
+
+  // 5. Synthèse par client et qualification du risque
+  var lignesTableau = [];
+  var totalExposeProcedures = 0;
+  var totalExposeRadiees = 0;
+  var nbClientsProcedures = 0;
+  var nbUrgencesExtremes = 0;
+
+  var encoursParSante = {
+    'Sain': 0,
+    'Sauvegarde': 0,
+    'Redressement': 0,
+    'Liquidation': 0,
+    'Radié / Fermé': 0
+  };
+
+  Object.keys(encoursParClient).forEach(function (cle) {
+    var item = encoursParClient[cle];
+    var siren = item.siren;
+    var infoEnt = siren ? resultatsEntreprise[siren] : null;
+    var annonces = siren ? (resultatsBodacc[siren] || []) : [];
+
+    // Recherche de procédures collectives dans le BODACC
+    var annonceProc = null;
+    for (var a = 0; a < annonces.length; a++) {
+      if (annonces[a].procedure_collective || annonces[a].famille === 'collective') {
+        annonceProc = annonces[a];
+        break;
+      }
+    }
+
+    // Détermination de la santé légale
+    var typeProcedure = 'In bonis (normal)';
+    var categorieSante = 'Sain';
+    var statutNiveau = 'OK';
+    var dateOuverture = null;
+    var dateLimite = null;
+    var joursRestants = null;
+    var lienBodacc = annonceProc && annonceProc.url ? annonceProc.url : '';
+    var niveauLigne = null;
+
+    var estFermee = infoEnt && (infoEnt.etat === 'fermée' || infoEnt.etat === 'fermee');
+
+    if (annonceProc) {
+      var nature = (annonceProc.nature || annonceProc.famille_libelle || '').toLowerCase();
+      if (nature.indexOf('liquidation') !== -1) {
+        typeProcedure = 'Liquidation Judiciaire';
+        categorieSante = 'Liquidation';
+      } else if (nature.indexOf('sauvegarde') !== -1) {
+        typeProcedure = 'Procédure de Sauvegarde';
+        categorieSante = 'Sauvegarde';
+      } else {
+        typeProcedure = 'Redressement Judiciaire';
+        categorieSante = 'Redressement';
+      }
+
+      statutNiveau = 'Procédure collective';
+      dateOuverture = annonceProc.date ? outils.date(annonceProc.date) : null;
+
+      if (dateOuverture) {
+        dateLimite = outils.ajouterJours(dateOuverture, delaiLegalJours);
+        joursRestants = outils.joursEntre(outils.aujourdhui, dateLimite);
+      }
+
+      totalExposeProcedures = outils.arrondi(totalExposeProcedures + item.total_ttc, 2);
+      nbClientsProcedures++;
+
+      if (joursRestants !== null && joursRestants <= seuilUrgenceJours) {
+        niveauLigne = 'danger';
+        if (joursRestants >= 0) {
+          nbUrgencesExtremes++;
+        }
+      } else {
+        niveauLigne = 'alerte';
+      }
+    } else if (estFermee && alerterRadiations) {
+      typeProcedure = 'Entreprise radiée / fermée (INSEE)';
+      categorieSante = 'Radié / Fermé';
+      statutNiveau = 'Fermé / Radié';
+      niveauLigne = 'alerte';
+      totalExposeRadiees = outils.arrondi(totalExposeRadiees + item.total_ttc, 2);
+    }
+
+    encoursParSante[categorieSante] = outils.arrondi(encoursParSante[categorieSante] + item.total_ttc, 2);
+
+    lignesTableau.push({
+      nom_client: item.nom,
+      siren: siren || 'Non renseigné',
+      statut_juridique: statutNiveau,
+      type_procedure: typeProcedure,
+      date_ouverture: dateOuverture,
+      date_limite: dateLimite,
+      jours_restants: joursRestants,
+      montant_expose: item.total_ttc,
+      nb_factures: item.factures.length,
+      lien_bodacc: lienBodacc,
+      _niveau: niveauLigne,
+      _est_procedure: !!annonceProc,
+      _est_fermee: estFermee
+    });
+  });
+
+  // Tri par priorité : Procédures urgentes d'abord, puis montant exposé décroissant
+  lignesTableau.sort(function (a, b) {
+    if (a._est_procedure && !b._est_procedure) return -1;
+    if (!a._est_procedure && b._est_procedure) return 1;
+    if (a._est_procedure && b._est_procedure) {
+      var jrA = a.jours_restants != null ? a.jours_restants : 999;
+      var jrB = b.jours_restants != null ? b.jours_restants : 999;
+      return jrA - jrB;
+    }
+    return b.montant_expose - a.montant_expose;
+  });
+
+  // 6. Nettoyage des clés privées du tableau
+  var lignesFinales = lignesTableau.map(function (row) {
+    return {
+      nom_client: row.nom_client,
+      siren: row.siren,
+      statut_juridique: row.statut_juridique,
+      type_procedure: row.type_procedure,
+      date_ouverture: row.date_ouverture,
+      date_limite: row.date_limite,
+      jours_restants: row.jours_restants,
+      montant_expose: row.montant_expose,
+      nb_factures: row.nb_factures,
+      lien_bodacc: row.lien_bodacc,
+      _niveau: row._niveau
+    };
+  });
+
+  // 7. Alertes de gestion
+  var alertes = [];
+
+  if (tropDeSirens) {
+    alertes.push({
+      niveau: 'info',
+      titre: 'Volume SIREN élevé (> 300)',
+      detail: 'Seuls les 300 premiers SIREN ont été interrogés pour respecter les quotas des API officielles.'
+    });
+  }
+
+  // Alerte rouge par client critique sous procédure
+  var clientsCritiques = lignesTableau.filter(function (l) { return l._est_procedure; });
+  clientsCritiques.forEach(function (c) {
+    var jr = c.jours_restants;
+    var texteDelai = '';
+    var nivAlerte = 'danger';
+
+    if (jr === null) {
+      texteDelai = 'Date BODACC non précisée';
+    } else if (jr < 0) {
+      texteDelai = 'Délai dépassé de ' + Math.abs(jr) + ' j (prescription des créances)';
+    } else if (jr <= seuilUrgenceJours) {
+      texteDelai = 'URGENCE ABSOLUE : plus que ' + jr + ' jour(s) pour déclarer';
+    } else {
+      texteDelai = 'Il vous reste ' + jr + ' jours pour déclarer';
+      nivAlerte = 'alerte';
+    }
+
+    alertes.push({
+      niveau: nivAlerte,
+      titre: c.type_procedure + ' : ' + c.nom_client + ' (' + outils.formatEuro(c.montant_expose) + ')',
+      detail: texteDelai + '. Adressez sans délai votre déclaration de créance certifiée avec bordereau et factures au mandataire judiciaire.'
+    });
+  });
+
+  // Alerte Orange pour les sociétés radiées/fermées
+  var clientsRadies = lignesTableau.filter(function (l) { return l._est_fermee && !l._est_procedure && l.montant_expose > 0; });
+  if (clientsRadies.length > 0 && alerterRadiations) {
+    var totalRadiesTTC = outils.somme(clientsRadies, 'montant_expose');
+    alertes.push({
+      niveau: 'alerte',
+      titre: clientsRadies.length + ' client(s) fermé(s) ou radié(s) à l\'INSEE',
+      detail: 'Montant non soldé : ' + outils.formatEuro(totalRadiesTTC) + '. Vérifiez la solvabilité des repreneurs éventuels ou provisionnez pour créance irrécouvrable.'
+    });
+  }
+
+  // 8. Graphique de répartition
+  var barresGraphique = [
+    { libelle: 'Sain', valeur: encoursParSante['Sain'] },
+    { libelle: 'Sauvegarde', valeur: encoursParSante['Sauvegarde'] },
+    { libelle: 'Redressement', valeur: encoursParSante['Redressement'] },
+    { libelle: 'Liquidation', valeur: encoursParSante['Liquidation'] }
+  ];
+  if (alerterRadiations) {
+    barresGraphique.push({ libelle: 'Radié / Fermé', valeur: encoursParSante['Radié / Fermé'] });
+  }
+
+  return {
+    kpis: [
+      {
+        libelle: 'Créances exposées (procédures)',
+        valeur: totalExposeProcedures,
+        format: 'euro',
+        niveau: totalExposeProcedures > 0 ? 'danger' : 'ok',
+        detail: 'Montant TTC sur clients sous mandat de justice'
+      },
+      {
+        libelle: 'Clients sous procédure collective',
+        valeur: nbClientsProcedures,
+        format: 'nombre',
+        niveau: nbClientsProcedures > 0 ? 'danger' : 'ok',
+        detail: 'Redressement, Liquidation ou Sauvegarde'
+      },
+      {
+        libelle: 'Procédures urgentes (< ' + seuilUrgenceJours + ' j)',
+        valeur: nbUrgencesExtremes,
+        format: 'nombre',
+        niveau: nbUrgencesExtremes > 0 ? 'danger' : 'ok',
+        detail: 'Délai de déclaration arrivant à échéance'
+      },
+      {
+        libelle: 'Créances entreprises radiées',
+        valeur: totalExposeRadiees,
+        format: 'euro',
+        niveau: totalExposeRadiees > 0 ? 'alerte' : 'ok',
+        detail: 'SIREN enregistrés fermés à l\'INSEE'
+      }
+    ],
+    alertes: alertes.slice(0, 8),
+    tableaux: [
+      {
+        id: 'procedures_clients',
+        titre: 'Répertoire exhaustif des clients à risque',
+        description: 'Suivi des procédures BODACC, vérification INSEE et compte à rebours de déclaration',
+        colonnes: [
+          { cle: 'nom_client', libelle: 'Client', format: 'texte' },
+          { cle: 'siren', libelle: 'SIREN', format: 'texte' },
+          { cle: 'statut_juridique', libelle: 'Statut détecté', format: 'niveau' },
+          { cle: 'type_procedure', libelle: 'Procédure / Motif', format: 'texte' },
+          { cle: 'date_ouverture', libelle: 'Date publication BODACC', format: 'date' },
+          { cle: 'date_limite', libelle: 'Date limite déclaration', format: 'date' },
+          { cle: 'jours_restants', libelle: 'Jours restants', format: 'jours' },
+          { cle: 'montant_expose', libelle: 'Restant dû TTC', format: 'euro' },
+          { cle: 'nb_factures', libelle: 'Factures', format: 'nombre' },
+          { cle: 'lien_bodacc', libelle: 'Annonce', format: 'lien' }
+        ],
+        lignes: lignesFinales
+      }
+    ],
+    graphiques: [
+      {
+        titre: 'Exposition du solde client par statut juridique (€ TTC)',
+        format: 'euro',
+        barres: barresGraphique
+      }
+    ]
+  };
+}
+</script>
+<script src="../_runtime/app.js?v=20261018"></script>
+</body>
+</html>
