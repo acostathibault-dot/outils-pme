@@ -8,7 +8,7 @@
 <meta property="og:title" content="Surveillance BODACC &amp; Procédures Collectives Clients">
 <meta property="og:description" content="Détectez instantanément les clients en procédure collective (redressement, liquidation) pour déclarer vos créances avant le délai légal de 2 mois. Gratuit, 100 % local : vos données ne quittent pas votre ordinateur.">
 <meta property="og:type" content="website">
-<link rel="stylesheet" href="../_runtime/app.css?v=20261018">
+<link rel="stylesheet" href="../_runtime/app.css?v=20261018b">
 </head>
 <body>
 <div id="app"></div>
@@ -246,12 +246,11 @@ async function analyser(donnees, params, outils) {
     var annonces = siren ? (resultatsBodacc[siren] || []) : [];
 
     // Recherche de procédures collectives dans le BODACC
+    // Procédure en cours seulement si la dernière annonce collective n'est pas une clôture ; délai calculé depuis le jugement d'ouverture
+    var collectives = annonces.filter(function (x) { return x.procedure_collective || x.famille === 'collective'; });
     var annonceProc = null;
-    for (var a = 0; a < annonces.length; a++) {
-      if (annonces[a].procedure_collective || annonces[a].famille === 'collective') {
-        annonceProc = annonces[a];
-        break;
-      }
+    if (collectives.length && collectives[0].procedure_en_cours !== false) {
+      annonceProc = collectives.filter(function (x) { return x.type_jugement === 'ouverture'; })[0] || collectives[0];
     }
 
     // Détermination de la santé légale
@@ -267,7 +266,7 @@ async function analyser(donnees, params, outils) {
     var estFermee = infoEnt && (infoEnt.etat === 'fermée' || infoEnt.etat === 'fermee');
 
     if (annonceProc) {
-      var nature = (annonceProc.nature || annonceProc.famille_libelle || '').toLowerCase();
+      var nature = (annonceProc.procedure || annonceProc.nature || annonceProc.famille_libelle || '').toLowerCase();
       if (nature.indexOf('liquidation') !== -1) {
         typeProcedure = 'Liquidation Judiciaire';
         categorieSante = 'Liquidation';
@@ -474,6 +473,6 @@ async function analyser(donnees, params, outils) {
   };
 }
 </script>
-<script src="../_runtime/app.js?v=20261018"></script>
+<script src="../_runtime/app.js?v=20261018b"></script>
 </body>
 </html>
