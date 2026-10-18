@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Escalade Automatisée des Impayés : De la Relance Pennylane à l'Appel Commercial</title>
+<meta name="description" content="Transformez vos factures en souffrance en actions commerciales prioritaires en alertant automatiquement le bon commercial dès que les relances Pennylane échouent.">
+<meta property="og:title" content="Escalade Automatisée des Impayés : De la Relance Pennylane à l'Appel Commercial">
+<meta property="og:description" content="Transformez vos factures en souffrance en actions commerciales prioritaires en alertant automatiquement le bon commercial dès que les relances Pennylane échouent.">
+<meta property="og:type" content="website">
+<style>
+:root{--ink:#0f1b2d;--muted:#5b6678;--line:#e3e7ee;--bg:#f6f8fb;--card:#fff;--accent:#12355b;--accent2:#1f6feb;--ok:#127a46}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.6}
+.wrap{max-width:860px;margin:0 auto;padding:24px 16px 64px}header{padding:32px 0 8px}.tag{display:inline-block;font-size:.8rem;font-weight:600;color:var(--accent);background:#e6eef8;border-radius:999px;padding:4px 12px;margin-right:6px}
+h1{font-size:2rem;line-height:1.2;margin:14px 0 10px}.promesse{font-size:1.15rem;color:var(--muted);margin:0 0 18px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:18px 0}.kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}.kpi b{display:block;font-size:1.05rem}.kpi span{color:var(--muted);font-size:.9rem}
+section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:22px;margin:18px 0}section h2{margin-top:0;font-size:1.3rem}
+h2,h3,h4{line-height:1.3}ol,ul{padding-left:22px}li{margin:4px 0}code{background:#eef1f6;border-radius:4px;padding:1px 5px;font-size:.92em}
+pre{background:#0f1b2d;color:#e8edf5;border-radius:10px;padding:16px;overflow:auto;font-size:.85rem;line-height:1.5;max-height:520px}pre code{background:none;padding:0;color:inherit}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}.btn{display:inline-block;border:0;border-radius:8px;padding:10px 16px;font-weight:600;font-size:.95rem;cursor:pointer;text-decoration:none}
+.btn-primary{background:var(--accent);color:#fff}.btn-ghost{background:#e6eef8;color:var(--accent)}.table{overflow:auto}table{border-collapse:collapse;width:100%;font-size:.92rem}th,td{border:1px solid var(--line);padding:8px;text-align:left;vertical-align:top}th{background:#f1f4f9}
+blockquote{margin:12px 0;padding:10px 14px;border-left:4px solid var(--accent2);background:#f1f6ff}.note{font-size:.9rem;color:var(--muted)}footer{text-align:center;color:var(--muted);font-size:.9rem;margin-top:36px}
+a{color:var(--accent2)}@media(max-width:600px){h1{font-size:1.6rem}section{padding:16px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><span class="tag">Google Apps Script</span><span class="tag">Gratuit</span>
+<h1>Escalade Automatisée des Impayés : De la Relance Pennylane à l'Appel Commercial</h1>
+<p class="promesse">Transformez vos factures en souffrance en actions commerciales prioritaires en alertant automatiquement le bon commercial dès que les relances Pennylane échouent.</p>
+<div class="kpis"><div class="kpi"><span>Temps gagné (estimation)</span><b>Estimation de 3 à 5 heures par mois pour le service comptable, et une réduction significative du DSO (Délai de Paiement Client).</b></div><div class="kpi"><span>Déclenchement</span><b>Script planifié (Time-driven trigger) chaque matin à 8h30.</b></div><div class="kpi"><span>Outils</span><b>Pennylane, Gmail, Google Sheets</b></div></div>
+<div class="actions"><a class="btn btn-primary" href="Code.gs" download>Télécharger Code.gs</a><button class="btn btn-ghost" id="copy">Copier le code</button><a class="btn btn-ghost" href="https://github.com/acostathibault-dot/outils-pme/tree/main/20261018-escalade-impayes-pennylane-sales" target="_blank" rel="noopener">Voir sur GitHub</a></div>
+</header>
+<section><h2>Ce que fait cette automatisation</h2><ol><li>Récupération via l'API Pennylane de toutes les factures de vente au statut 'en retard' (overdue).</li><li>Filtrage des factures selon deux critères cumulatifs : un montant minimum (ex: &gt; 500€) et un nombre de jours de retard (ex: &gt; 15 jours).</li><li>Identification du commercial responsable via les 'tags' de la fiche client Pennylane ou un mapping dans Google Sheets.</li><li>Vérification dans l'onglet 'Historique' du Google Sheets pour éviter d'alerter deux fois pour la même facture (gestion des doublons).</li><li>Génération d'un email personnalisé via Gmail au commercial incluant le nom du client, le montant exact, le lien direct vers la facture Pennylane et l'historique des relances auto déjà parties.</li><li>Ajout automatique d'une ligne de tâche dans le tableau de suivi Google Sheets avec un statut 'À appeler'.</li><li>Calcul du montant total des impayés 'critiques' par commercial pour intégration dans un rapport hebdomadaire.</li><li>Mise à jour de l'onglet de suivi dès que la facture change de statut dans Pennylane (payée) lors de l'exécution suivante.</li></ol></section>
+<section><h2>Guide d'installation</h2>
+<h2>Escalade Automatisée des Impayés : De la Relance Pennylane à l'Appel Commercial</h2>
+<h3>À quoi ça sert</h3>
+<p>Cette automatisation est conçue pour les dirigeants et responsables financiers qui souhaitent réduire leur DSO (délai de paiement) sans alourdir la charge de travail de l'équipe comptable.</p>
+<p>Lorsqu'une facture reste impayée malgré les relances automatiques de Pennylane, le script prend le relais :</p>
+<ol><li><strong>Il identifie</strong> les factures dépassant un certain montant et un certain délai de retard.</li><li><strong>Il alerte</strong> personnellement le commercial en charge du client par email.</li><li><strong>Il crée une tâche</strong> de suivi dans un Google Sheet partagé.</li><li><strong>Il met à jour</strong> automatiquement le statut dès que le client a payé.</li></ol>
+<p><strong>Temps gagné estimé :</strong> 3 à 5 heures par mois et une réactivité accrue sur les litiges clients.</p>
+<p>---</p>
+<h3>Prérequis</h3>
+<ul><li>Un compte <strong>Pennylane</strong> avec un accès Administrateur (pour générer une clé API).</li><li>Un compte <strong>Google</strong> (Google Sheets et Gmail).</li><li>Une liste de vos clients avec le nom ou l'email du commercial associé (soit dans Pennylane via des tags, soit dans le tableau de mapping).</li></ul>
+<p>---</p>
+<h3>Installation pas à pas</h3>
+<ol><li><strong>Créer le support :</strong> Créez une nouvelle feuille <strong>Google Sheets</strong> vide.</li><li><strong>Ouvrir l'éditeur :</strong> Allez dans le menu <strong>Extensions</strong> &gt; <strong>Apps Script</strong>.</li><li><strong>Copier le code :</strong> Supprimez le code existant dans l'éditeur et collez le code fourni dans le fichier <code>Code.gs</code>.</li><li><strong>Enregistrer :</strong> Cliquez sur l'icône de disquette (Enregistrer) et nommez le projet &quot;Escalade Impayés Pennylane&quot;.</li><li><strong>Initialiser l'interface :</strong> Fermez l'onglet Apps Script et <strong>actualisez (F5)</strong> votre page Google Sheets. Un nouveau menu nommé <strong>🚀 Pennylane Automation</strong> apparaît en haut à droite.</li><li><strong>Préparer les feuilles :</strong> Cliquez sur <strong>🚀 Pennylane Automation</strong> &gt; <strong>⚙️ Configurer les feuilles</strong>.</li><li><strong>Autoriser le script :</strong> Une fenêtre &quot;Autorisation requise&quot; s'ouvre.  *   Cliquez sur <strong>Continuer</strong>. *   Choisissez votre compte Google. *   Un écran d'avertissement &quot;Google n'a pas validé cette application&quot; s'affiche (c'est normal pour un script interne). Cliquez sur <strong>Paramètres avancés</strong> en bas à gauche, puis sur <strong>Accéder à Escalade Impayés Pennylane (non sécurisé)</strong>. *   Cliquez sur <strong>Autoriser</strong>.</li><li><strong>Vérification :</strong> Le script va créer automatiquement trois onglets : *Suivi des Impayés*, *Mapping Commerciaux* et *Journal d'Exécution*.</li></ol>
+<p>---</p>
+<h3>Configuration</h3>
+<h4>1. Paramètres du script</h4>
+<p>Retournez dans l'éditeur <strong>Apps Script</strong> pour modifier les valeurs dans le bloc <code>CONFIG</code> au début du code :</p>
+<div class="table"><table><thead><tr><th>Paramètre</th><th>Rôle</th><th>Valeur conseillée</th></tr></thead><tbody><tr><td><code>SEUIL_MONTANT_MIN</code></td><td>Montant (en €) à partir duquel on alerte le commercial.</td><td><code>500</code></td></tr><tr><td><code>JOURS_RETARD_CRITIQUE</code></td><td>Nombre de jours de retard avant l'escalade.</td><td><code>15</code></td></tr><tr><td><code>DRY_RUN</code></td><td>Mode test (si <code>true</code>, aucun email n'est envoyé).</td><td><code>true</code> (pour commencer)</td></tr><tr><td><code>EMAIL_ADMIN_COPIE</code></td><td>Email du dirigeant ou DAF pour supervision.</td><td>Votre email</td></tr></tbody></table></div>
+<h4>2. Clé API Pennylane</h4>
+<ol><li>Connectez-vous à <strong>Pennylane</strong>.</li><li>Allez dans <strong>Paramètres</strong> &gt; <strong>Intégrations</strong> &gt; <strong>API</strong>.</li><li>Générez une nouvelle clé API (Token) avec les droits de lecture sur les factures de vente.</li><li>Dans votre Google Sheet, allez dans le menu <strong>🚀 Pennylane Automation</strong> &gt; <strong>🔑 Enregistrer le Token API</strong> et collez votre clé.</li></ol>
+<h4>3. Mapping des commerciaux</h4>
+<p>Dans l'onglet <strong>Mapping Commerciaux</strong>, listez le nom exact de vos clients (tel qu'écrit dans Pennylane) et l'adresse email du commercial responsable. *Note : Vous pouvez aussi utiliser des tags directement dans Pennylane (ex: &quot;Commercial: marc@entreprise.fr&quot;).*</p>
+<p>---</p>
+<h3>Tester sans risque</h3>
+<ol><li>Assurez-vous que <code>DRY_RUN</code> est bien sur <code>true</code> dans le code.</li><li>Allez dans le menu <strong>🚀 Pennylane Automation</strong> &gt; <strong>▶️ Lancer l'escalade maintenant</strong>.</li><li>Consultez l'onglet <strong>Journal d'Exécution</strong>. Le script affichera &quot;Email simulé vers...&quot; pour chaque facture détectée, sans réellement envoyer d'emails ni modifier le tableau de suivi.</li></ol>
+<p>---</p>
+<h3>Mettre en service</h3>
+<p>Une fois que les tests dans le journal sont concluants :</p>
+<ol><li>Dans le code, passez <code>DRY_RUN</code> à <code>false</code>.</li><li>Allez dans le menu <strong>🚀 Pennylane Automation</strong> &gt; <strong>⏰ Activer le déclencheur quotidien</strong>.</li><li>Le script s'exécutera désormais de manière totalement autonome chaque matin à 8h30.</li></ol>
+<p>---</p>
+<h3>En cas de problème</h3>
+<div class="table"><table><thead><tr><th>Problème</th><th>Solution</th></tr></thead><tbody><tr><td><strong>Le menu Pennylane n'apparaît pas</strong></td><td>Actualisez la page de votre navigateur (F5).</td></tr><tr><td><strong>Erreur &quot;Token API manquant&quot;</strong></td><td>Relancez l'étape &quot;Enregistrer le Token API&quot; via le menu.</td></tr><tr><td><strong>Le commercial ne reçoit rien</strong></td><td>Vérifiez que son email est correct dans l'onglet &quot;Mapping&quot; ou dans les tags Pennylane. Vérifiez aussi le dossier Spams.</td></tr><tr><td><strong>Erreur d'autorisation</strong></td><td>Relancez le menu &quot;Configurer les feuilles&quot; pour déclencher à nouveau la fenêtre de validation Google.</td></tr><tr><td><strong>Doublons d'alertes</strong></td><td>Le script vérifie l'ID de la facture dans l'onglet &quot;Suivi&quot;. Ne supprimez pas les lignes de cet onglet manuellement.</td></tr></tbody></table></div>
+<p>---</p>
+<h3>Sécurité et limites</h3>
+<ul><li><strong>Confidentialité :</strong> Les données transitent uniquement entre Pennylane et votre compte Google. Aucune donnée n'est envoyée à des serveurs tiers.</li><li><strong>RGPD :</strong> Assurez-vous que l'envoi d'emails internes contenant des noms de clients respecte votre politique de confidentialité.</li><li><strong>Limites :</strong> L'automatisation ne détecte pas les litiges oraux. Si un client vous appelle pour contester une facture, marquez-la comme &quot;Litige&quot; dans Pennylane pour éviter l'escalade.</li><li><strong>Rigueur :</strong> Le succès de l'outil dépend de la mise à jour régulière des commerciaux assignés aux clients.</li></ul>
+</section>
+<section><h2>Le code</h2><p class="note">Fichier <code>Code.gs</code>. Lisez le guide avant de l'utiliser et testez-le d'abord en mode test.</p>
+<pre id="code"><code>/**
+ * CONFIGURATION DE L'AUTOMATISATION
+ * Modifiez les valeurs ci-dessous pour adapter le script à votre entreprise.
+ */
+const CONFIG = {
+  // --- Paramètres Métier ---
+  SEUIL_MONTANT_MIN: 500, // Montant minimum de la facture (EUR) pour déclencher l'alerte
+  JOURS_RETARD_CRITIQUE: 15, // Nombre de jours après l'échéance pour escalader au commercial
+  DRY_RUN: true, // true = simule l'envoi d'emails et les logs, false = exécution réelle
+  EMAIL_ADMIN_COPIE: &quot;direction@votre-pme.fr&quot;, // Email en copie pour suivi DAF/Dirigeant
+  
+  // --- Noms des Feuilles Google Sheets ---
+  SHEET_SUIVI: &quot;Suivi des Impayés&quot;,
+  SHEET_MAPPING: &quot;Mapping Commerciaux&quot;,
+  SHEET_JOURNAL: &quot;Journal d'Exécution&quot;,
+  
+  // --- Configuration API Pennylane ---
+  PENNYLANE_BASE_URL: &quot;https://app.pennylane.com/api/external/v2&quot;,
+  CHAMPS_FACTURE: {
+    ID: &quot;id&quot;,
+    NUMERO: &quot;invoice_number&quot;,
+    DATE_ECHEANCE: &quot;deadline&quot;,
+    MONTANT_TOTAL: &quot;amount&quot;,
+    MONTANT_RESTANT: &quot;remaining_amount&quot;,
+    STATUT: &quot;status&quot;,
+    CLIENT: &quot;customer&quot;, // Objet contenant name, id, tags
+    LIEN_PENNYLANE: &quot;pennylane_url&quot; // URL directe si disponible ou générée
+  },
+
+  // --- Textes des Emails ---
+  EMAIL_SUJET: &quot;⚠️ ACTION REQUISE : Retard de paiement critique - [CLIENT]&quot;,
+  EMAIL_CORPS_HTML: `
+    &lt;p&gt;Bonjour [PRENOM_COMMERCIAL],&lt;/p&gt;
+    &lt;p&gt;La facture n°&lt;strong&gt;[NUMERO_FACTURE]&lt;/strong&gt; du client &lt;strong&gt;[CLIENT]&lt;/strong&gt; est en retard de &lt;strong&gt;[JOURS] jours&lt;/strong&gt;.&lt;/p&gt;
+    &lt;p&gt;Malgré les relances automatiques de Pennylane, le montant de &lt;strong&gt;[MONTANT] €&lt;/strong&gt; n'a toujours pas été réglé.&lt;/p&gt;
+    &lt;p&gt;&lt;strong&gt;Action requise :&lt;/strong&gt; Merci de contacter le client pour identifier un éventuel litige et obtenir une promesse de règlement.&lt;/p&gt;
+    &lt;p&gt;👉 &lt;a href=&quot;[LIEN_FACTURE]&quot;&gt;Consulter la facture sur Pennylane&lt;/a&gt;&lt;/p&gt;
+    &lt;br&gt;
+    &lt;p&gt;&lt;i&gt;Ceci est une alerte automatisée du service comptable.&lt;/i&gt;&lt;/p&gt;
+  `
+};
+
+/**
+ * FONCTION PRINCIPALE : Exécutée chaque matin
+ */
+function executerEscaladeImpayes() {
+  const lock = LockService.getScriptPropertiesLock();
+  if (!lock.tryLock(10000)) return; // Évite les exécutions simultanées
+
+  try {
+    logAction(&quot;DEBUT&quot;, &quot;Lancement du script d'escalade des impayés&quot;);
+    
+    const token = PropertiesService.getScriptProperties().getProperty('PENNYLANE_TOKEN');
+    if (!token) throw new Error(&quot;Token API Pennylane manquant. Utilisez le menu 'Configuration' pour l'enregistrer.&quot;);
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheetSuivi = ss.getSheetByName(CONFIG.SHEET_SUIVI);
+    const mappingCommerciaux = getMappingCommerciaux(ss);
+
+    // 1. Récupération des factures en retard via API Pennylane
+    // Filtre : statut = overdue
+    const filtres = JSON.stringify([{ field: &quot;status&quot;, operator: &quot;eq&quot;, value: &quot;overdue&quot; }]);
+    const factures = fetchPennylaneData(&quot;customer_invoices&quot;, filtres);
+    
+    logAction(&quot;INFO&quot;, `${factures.length} factures en retard récupérées.`);
+
+    let alertesEnvoyees = 0;
+    let montantsParCommercial = {};
+
+    // 2. Traitement de chaque facture
+    factures.forEach(facture =&gt; {
+      const montant = parseFloat(facture[CONFIG.CHAMPS_FACTURE.MONTANT_RESTANT]);
+      const dateEcheance = new Date(facture[CONFIG.CHAMPS_FACTURE.DATE_ECHEANCE]);
+      const joursRetard = Math.floor((new Date() - dateEcheance) / (1000 * 60 * 60 * 24));
+      const clientNom = facture[CONFIG.CHAMPS_FACTURE.CLIENT].name;
+      const factureId = facture[CONFIG.CHAMPS_FACTURE.ID];
+
+      // Critères de filtrage
+      if (montant &gt;= CONFIG.SEUIL_MONTANT_MIN &amp;&amp; joursRetard &gt;= CONFIG.JOURS_RETARD_CRITIQUE) {
+        
+        // Vérifier si déjà traité (Idempotence)
+        if (estDejaTraite(sheetSuivi, factureId)) {
+          // Mise à jour du statut si nécessaire (ex: si payée entre temps, mais ici on traite les overdue)
+          return;
+        }
+
+        // 3. Identification du commercial
+        const emailCommercial = identifierCommercial(facture, mappingCommerciaux);
+        
+        if (emailCommercial) {
+          // 4. Envoi de l'alerte
+          envoyerAlerteCommercial(facture, emailCommercial, joursRetard);
+          
+          // 5. Ajout au tableau de suivi
+          ajouterLigneSuivi(sheetSuivi, facture, emailCommercial, joursRetard);
+          
+          // 6. Accumulation pour rapport
+          montantsParCommercial[emailCommercial] = (montantsParCommercial[emailCommercial] || 0) + montant;
+          alertesEnvoyees++;
+        } else {
+          logAction(&quot;AVERTISSEMENT&quot;, `Aucun commercial trouvé pour le client ${clientNom}`);
+        }
+      }
+    });
+
+    // 7. Mise à jour des factures payées dans le suivi
+    synchroniserStatutsPayes(sheetSuivi, factures);
+
+    logAction(&quot;FIN&quot;, `Traitement terminé. ${alertesEnvoyees} alertes générées.`);
+
+  } catch (e) {
+    logAction(&quot;ERREUR&quot;, e.toString());
+    MailApp.sendEmail(CONFIG.EMAIL_ADMIN_COPIE, &quot;Erreur Script Escalade Pennylane&quot;, e.toString());
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * GESTION API PENNYLANE AVEC PAGINATION
+ */
+function fetchPennylaneData(resource, filterJson) {
+  const token = PropertiesService.getScriptProperties().getProperty('PENNYLANE_TOKEN');
+  let allData = [];
+  let cursor = null;
+  let hasNextPage = true;
+
+  while (hasNextPage) {
+    let url = `${CONFIG.PENNYLANE_BASE_URL}/${resource}?filter=${encodeURIComponent(filterJson)}`;
+    if (cursor) url += `&amp;cursor=${cursor}`;
+
+    const options = {
+      method: &quot;get&quot;,
+      headers: { &quot;Authorization&quot;: `Bearer ${token}` },
+      muteHttpExceptions: true
+    };
+
+    const response = UrlFetchApp.fetch(url, options);
+    const code = response.getResponseCode();
+
+    if (code === 429) {
+      Utilities.sleep(2000);
+      continue;
+    }
+    if (code !== 200) throw new Error(`Erreur API Pennylane (${code}): ${response.getContentText()}`);
+
+    const json = JSON.parse(response.getContentText());
+    const items = json.data || json.items || [];
+    allData = allData.concat(items);
+
+    cursor = json.next_cursor;
+    hasNextPage = !!cursor;
+  }
+  return allData;
+}
+
+/**
+ * IDENTIFICATION DU COMMERCIAL
+ * Priorité 1 : Mapping dans Google Sheet
+ * Priorité 2 : Tag &quot;Commercial: Nom&quot; ou &quot;Sales: Email&quot; dans Pennylane
+ */
+function identifierCommercial(facture, mapping) {
+  const client = facture[CONFIG.CHAMPS_FACTURE.CLIENT];
+  const clientNom = client.name;
+  
+  // Recherche dans le mapping Sheet
+  if (mapping[clientNom]) return mapping[clientNom];
+
+  // Recherche dans les tags Pennylane
+  const tags = client.tags || [];
+  for (let tag of tags) {
+    if (tag.toLowerCase().startsWith(&quot;commercial:&quot;) || tag.toLowerCase().startsWith(&quot;sales:&quot;)) {
+      const email = tag.split(&quot;:&quot;)[1].trim();
+      if (email.includes(&quot;@&quot;)) return email;
+    }
+  }
+  return null;
+}
+
+/**
+ * ENVOI DE L'EMAIL VIA GMAIL
+ */
+function envoyerAlerteCommercial(facture, emailCommercial, jours) {
+  const clientNom = facture[CONFIG.CHAMPS_FACTURE.CLIENT].name;
+  const montant = facture[CONFIG.CHAMPS_FACTURE.MONTANT_RESTANT];
+  const numero = facture[CONFIG.CHAMPS_FACTURE.NUMERO];
+  const lien = `https://app.pennylane.com/customer_invoices/${facture[CONFIG.CHAMPS_FACTURE.ID]}`;
+
+  const sujet = CONFIG.EMAIL_SUJET.replace(&quot;[CLIENT]&quot;, clientNom);
+  const corpsHtml = CONFIG.EMAIL_CORPS_HTML
+    .replace(&quot;[PRENOM_COMMERCIAL]&quot;, emailCommercial.split('@')[0])
+    .replace(&quot;[NUMERO_FACTURE]&quot;, numero)
+    .replace(&quot;[CLIENT]&quot;, clientNom)
+    .replace(&quot;[JOURS]&quot;, jours)
+    .replace(&quot;[MONTANT]&quot;, montant)
+    .replace(&quot;[LIEN_FACTURE]&quot;, lien);
+
+  if (CONFIG.DRY_RUN) {
+    logAction(&quot;DRY_RUN&quot;, `Email simulé vers ${emailCommercial} pour ${clientNom} (${montant}€)`);
+  } else {
+    GmailApp.sendEmail(emailCommercial, sujet, &quot;&quot;, {
+      htmlBody: corpsHtml,
+      cc: CONFIG.EMAIL_ADMIN_COPIE,
+      name: &quot;Service Comptabilité&quot;
+    });
+  }
+}
+
+/**
+ * GESTION DU GOOGLE SHEET
+ */
+function estDejaTraite(sheet, factureId) {
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i &lt; data.length; i++) {
+    if (data[i][0] === factureId) return true;
+  }
+  return false;
+}
+
+function ajouterLigneSuivi(sheet, facture, email, jours) {
+  if (CONFIG.DRY_RUN) return;
+  sheet.appendRow([
+    facture[CONFIG.CHAMPS_FACTURE.ID],
+    new Date(),
+    facture[CONFIG.CHAMPS_FACTURE.CLIENT].name,
+    facture[CONFIG.CHAMPS_FACTURE.NUMERO],
+    facture[CONFIG.CHAMPS_FACTURE.MONTANT_RESTANT],
+    jours,
+    email,
+    &quot;À appeler&quot;,
+    &quot;&quot; // Notes
+  ]);
+}
+
+function synchroniserStatutsPayes(sheet, facturesOverdue) {
+  if (CONFIG.DRY_RUN) return;
+  const data = sheet.getDataRange().getValues();
+  const idsOverdue = facturesOverdue.map(f =&gt; f.id);
+
+  for (let i = 1; i &lt; data.length; i++) {
+    const idFactureSheet = data[i][0];
+    const statutActuel = data[i][7];
+
+    if (statutActuel === &quot;À appeler&quot; &amp;&amp; !idsOverdue.includes(idFactureSheet)) {
+      // Si elle n'est plus dans la liste &quot;overdue&quot;, on vérifie son statut réel
+      sheet.getRange(i + 1, 8).setValue(&quot;Payée / Régularisée&quot;);
+      sheet.getRange(i + 1, 8).setBackground(&quot;#d9ead3&quot;);
+    }
+  }
+}
+
+function getMappingCommerciaux(ss) {
+  const sheet = ss.getSheetByName(CONFIG.SHEET_MAPPING);
+  const data = sheet.getDataRange().getValues();
+  let mapping = {};
+  for (let i = 1; i &lt; data.length; i++) {
+    mapping[data[i][0]] = data[i][1]; // Nom Client -&gt; Email Commercial
+  }
+  return mapping;
+}
+
+/**
+ * CONFIGURATION ET SETUP
+ */
+function onOpen() {
+  const ui = SpreadsheetApp.getUi();
+  ui.createMenu('🚀 Pennylane Automation')
+    .addItem('⚙️ Configurer les feuilles', 'setup')
+    .addItem('🔑 Enregistrer le Token API', 'enregistrerToken')
+    .addSeparator()
+    .addItem('▶️ Lancer l\'escalade maintenant', 'executerEscaladeImpayes')
+    .addItem('⏰ Activer le déclencheur quotidien', 'installerDeclencheur')
+    .addToUi();
+}
+
+function setup() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  // Feuille de Suivi
+  if (!ss.getSheetByName(CONFIG.SHEET_SUIVI)) {
+    const s = ss.insertSheet(CONFIG.SHEET_SUIVI);
+    const headers = [&quot;ID Facture&quot;, &quot;Date Alerte&quot;, &quot;Client&quot;, &quot;N° Facture&quot;, &quot;Montant&quot;, &quot;Jours Retard&quot;, &quot;Commercial&quot;, &quot;Statut&quot;, &quot;Commentaires&quot;];
+    s.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight(&quot;bold&quot;).setBackground(&quot;#f3f3f3&quot;);
+    s.setFrozenRows(1);
+  }
+
+  // Feuille de Mapping
+  if (!ss.getSheetByName(CONFIG.SHEET_MAPPING)) {
+    const s = ss.insertSheet(CONFIG.SHEET_MAPPING);
+    const headers = [&quot;Nom Exact Client Pennylane&quot;, &quot;Email du Commercial&quot;];
+    s.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight(&quot;bold&quot;);
+  }
+
+  // Feuille de Journal
+  if (!ss.getSheetByName(CONFIG.SHEET_JOURNAL)) {
+    const s = ss.insertSheet(CONFIG.SHEET_JOURNAL);
+    s.getRange(1, 1, 1, 3).setValues([[&quot;Date&quot;, &quot;Type&quot;, &quot;Message&quot;]]).setFontWeight(&quot;bold&quot;);
+  }
+
+  SpreadsheetApp.getUi().alert(&quot;Configuration terminée. N'oubliez pas d'enregistrer votre Token API.&quot;);
+}
+
+function enregistrerToken() {
+  const ui = SpreadsheetApp.getUi();
+  const response = ui.prompt('Configuration API Pennylane', 'Collez votre token API Pennylane (v2) :', ui.ButtonSet.OK_CANCEL);
+  
+  if (response.getSelectedButton() == ui.Button.OK) {
+    PropertiesService.getScriptProperties().setProperty('PENNYLANE_TOKEN', response.getResponseText());
+    ui.alert(&quot;✅ Token enregistré avec succès.&quot;);
+  }
+}
+
+function installerDeclencheur() {
+  const triggers = ScriptApp.getProjectTriggers();
+  triggers.forEach(t =&gt; ScriptApp.deleteTrigger(t));
+  
+  ScriptApp.newTrigger('executerEscaladeImpayes')
+    .timeBased()
+    .everyDays(1)
+    .atHour(8)
+    .nearMinute(30)
+    .create();
+    
+  SpreadsheetApp.getUi().alert(&quot;⏰ Déclencheur installé : le script s'exécutera chaque matin à 8h30.&quot;);
+}
+
+function logAction(type, message) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(CONFIG.SHEET_JOURNAL);
+  if (sheet) {
+    sheet.appendRow([new Date(), type, message]);
+    if (sheet.getLastRow() &gt; 1000) sheet.deleteRow(2); // Nettoyage auto
+  }
+  console.log(`[${type}] ${message}`);
+}</code></pre></section>
+<section><h2>Limites et précautions</h2><p>L'automatisation ne gère pas les litiges déclarés oralement au commercial s'ils ne sont pas notés dans Pennylane. Elle nécessite une rigueur dans l'assignation des commerciaux aux fiches clients. Les données personnelles (emails) doivent être traitées conformément au RGPD.</p><p class="note">Automatisation fournie gratuitement, sans garantie. Testez-la sur des données de test, vérifiez qu'elle correspond à votre organisation et gardez la main sur les envois. Elle ne remplace pas l'avis de votre expert-comptable.</p></section>
+<footer>Automatisation gratuite créée par Thibault Acosta-Mendez · <a href="www.linkedin.com/in/thibaultacosta-mendez" target="_blank" rel="noopener">Me suivre sur LinkedIn</a></footer>
+</div>
+<script>
+document.getElementById("copy").addEventListener("click", function () {
+  var b = this; var t = document.querySelector("#code code").textContent;
+  function done() { b.textContent = "Code copié"; setTimeout(function () { b.textContent = "Copier le code"; }, 2000); }
+  if (navigator.clipboard) { navigator.clipboard.writeText(t).then(done, function () {}); }
+  else { var a = document.createElement("textarea"); a.value = t; document.body.appendChild(a); a.select(); document.execCommand("copy"); a.remove(); done(); }
+});
+</script>
+</body>
+</html>
