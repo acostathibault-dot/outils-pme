@@ -280,6 +280,85 @@ var OutilCore = (function () {
     return { procedure: procedure, type_jugement: type, procedure_en_cours: type !== 'clôture' };
   }
 
+
+  /* ---------- Connecteur Pennylane (API v2) : réponses de l'API → tableaux aux colonnes françaises ---------- */
+  var STATUTS_FACTURE = { paid: 'Payée', partially_paid: 'Partiellement payée', late: 'En retard', upcoming: 'À venir', draft: 'Brouillon', cancelled: 'Annulée', partially_cancelled: 'Partiellement annulée', archived: 'Archivée', incomplete: 'Incomplète', credit_note: 'Avoir', proforma: 'Proforma' };
+  var STATUTS_DEVIS = { pending: 'En attente', accepted: 'Accepté', denied: 'Refusé', invoiced: 'Facturé', estimate_pending: 'En attente', estimate_accepted: 'Accepté', estimate_denied: 'Refusé', estimate_invoiced: 'Facturé', draft: 'Brouillon', expired: 'Expiré' };
+  var STATUTS_PAIEMENT = { to_be_processed: 'À traiter', to_be_paid: 'À payer', partially_paid: 'Partiellement payée', paid: 'Payée', payment_error: 'Erreur de paiement', payment_scheduled: 'Paiement programmé', payment_in_progress: 'Paiement en cours', payment_emitted: 'Paiement émis', payment_found: 'Paiement trouvé', paid_offline: 'Payée hors Pennylane', payment_not_needed: 'Aucun paiement nécessaire' };
+  function nb(v) { var n = num(v); return n == null ? null : n; }
+  function idDe(o) { return o && typeof o === 'object' ? o.id : o; }
+  function adresse(a) { a = a || {}; return { adresse: a.address || '', cp: a.postal_code || '', ville: a.city || '', pays: a.country_alpha2 || '' }; }
+  function tiers(refs, cle, id) { return (refs && refs[cle] && refs[cle][id]) || {}; }
+  var SOURCES = {
+    clients: { libelle: 'Clients', chemin: 'customers', parDate: false, colonnes: ['Nom', 'SIREN', 'N° TVA', 'Email', 'Adresse', 'Code postal', 'Ville', 'Pays', 'Conditions de paiement', 'Type', 'Référence', 'IBAN', 'Date de création'],
+      ligne: function (c) { var a = adresse(c.billing_address); return ['' + (c.name || [c.first_name, c.last_name].filter(Boolean).join(' ')), c.reg_no || '', c.vat_number || '', (c.emails || [])[0] || '', a.adresse, a.cp, a.ville, a.pays, c.payment_conditions || '', c.customer_type === 'individual' ? 'Particulier' : 'Entreprise', c.reference || '', c.billing_iban || '', c.created_at || '']; } },
+    fournisseurs: { libelle: 'Fournisseurs', chemin: 'suppliers', parDate: false, colonnes: ['Nom', 'SIREN', 'SIRET', 'N° TVA', 'IBAN', 'Email', 'Adresse', 'Code postal', 'Ville', 'Pays', 'Délai de paiement (jours)', 'Mode de paiement', 'Date de création', 'Dernière mise à jour'],
+      ligne: function (s) { var a = adresse(s.postal_address); return [s.name || '', s.reg_no || '', s.establishment_no || '', s.vat_number || '', s.iban || '', (s.emails || [])[0] || '', a.adresse, a.cp, a.ville, a.pays, s.supplier_due_date_delay == null ? '' : s.supplier_due_date_delay, s.supplier_payment_method || '', s.created_at || '', s.updated_at || '']; } },
+    factures_clients: { libelle: 'Factures clients', chemin: 'customer_invoices', parDate: true, jointure: 'clients', colonnes: ['Numéro de facture', 'Libellé', 'Client', 'SIREN client', 'Email client', 'Date de facture', "Date d'échéance", 'Montant TTC', 'Montant HT', 'TVA', 'Reste à payer', 'Payée', 'Statut', 'Avoir', 'Devise', 'Date de création', 'Dernière mise à jour'],
+      ligne: function (f, refs) { var c = tiers(refs, 'clients', idDe(f.customer)); var ttc = nb(f.amount), tva = nb(f.tax); return [f.invoice_number || '', f.label || '', c.name || '', c.reg_no || '', (c.emails || [])[0] || '', f.date || '', f.deadline || '', ttc, ttc == null ? null : ttc - (tva || 0), tva, nb(f.remaining_amount_with_tax), f.paid ? 'oui' : 'non', STATUTS_FACTURE[f.status] || f.status || '', (f.credit_note || f.status === 'credit_note' || (ttc != null && ttc < 0)) ? 'oui' : 'non', f.currency || 'EUR', f.created_at || '', f.updated_at || '']; } },
+    factures_fournisseurs: { libelle: 'Factures fournisseurs', chemin: 'supplier_invoices', parDate: true, jointure: 'fournisseurs', colonnes: ['Numéro de facture', 'Libellé', 'Fournisseur', 'SIREN fournisseur', 'IBAN fournisseur', 'Date de facture', "Date d'échéance", 'Montant TTC', 'Montant HT', 'TVA', 'Reste à payer', 'Payée', 'Statut de paiement', 'Devise', 'Date de création', 'Dernière mise à jour'],
+      ligne: function (f, refs) { var s = tiers(refs, 'fournisseurs', idDe(f.supplier)); var ttc = nb(f.amount), tva = nb(f.tax); return [f.invoice_number || '', f.label || '', s.name || '', s.reg_no || '', s.iban || '', f.date || '', f.deadline || '', ttc, ttc == null ? null : ttc - (tva || 0), tva, nb(f.remaining_amount_with_tax), f.paid ? 'oui' : 'non', STATUTS_PAIEMENT[f.payment_status] || f.payment_status || '', f.currency || 'EUR', f.created_at || '', f.updated_at || '']; } },
+    devis: { libelle: 'Devis', chemin: 'quotes', parDate: false, jointure: 'clients', colonnes: ['Numéro de devis', 'Libellé', 'Client', 'SIREN client', 'Date du devis', 'Date de validité', 'Montant TTC', 'Montant HT', 'Statut', 'Date de création', 'Dernière mise à jour'],
+      ligne: function (q, refs) { var c = tiers(refs, 'clients', idDe(q.customer)); var ttc = nb(q.amount), tva = nb(q.tax); return [q.quote_number || '', q.label || '', c.name || '', c.reg_no || '', q.date || '', q.deadline || '', ttc, ttc == null ? null : ttc - (tva || 0), STATUTS_DEVIS[q.status] || q.status || '', q.created_at || '', q.updated_at || '']; } },
+    transactions: { libelle: 'Transactions bancaires', chemin: 'transactions', parDate: true, colonnes: ['Date', 'Libellé', 'Montant', 'Reste à rapprocher', 'Justificatif requis', 'Compte bancaire', 'Devise', 'Date de création'],
+      ligne: function (t) { return [t.date || '', t.label || '', nb(t.amount), nb(t.outstanding_balance), t.attachment_required ? 'oui' : 'non', idDe(t.bank_account) == null ? '' : String(idDe(t.bank_account)), t.currency || 'EUR', t.created_at || '']; } }
+  };
+  function sourcesNecessaires(entrees) {
+    var s = [];
+    (entrees || []).forEach(function (e) { var src = SOURCES[e.source]; if (!src) return; if (src.jointure && s.indexOf(src.jointure) < 0) s.push(src.jointure); if (s.indexOf(e.source) < 0) s.push(e.source); });
+    return s;
+  }
+  function indexer(items) { var r = {}; (items || []).forEach(function (x) { if (x && x.id != null) r[x.id] = x; }); return r; }
+  function tablePennylane(source, items, refs) {
+    var src = SOURCES[source]; if (!src) return { entetes: [], lignes: [] };
+    return { entetes: src.colonnes.slice(), lignes: (items || []).map(function (x) { return src.ligne(x, refs || {}); }) };
+  }
+  function correspondancePennylane(source, champs) {
+    var src = SOURCES[source]; if (!src) return {};
+    var res = {}, pris = {};
+    champs.forEach(function (c) { var i = c.colonne_pennylane ? src.colonnes.indexOf(c.colonne_pennylane) : -1; if (i > -1) { res[c.cle] = i; pris[i] = true; } });
+    var auto = correspondanceAuto(src.colonnes, champs.filter(function (c) { return res[c.cle] == null; }));
+    Object.keys(auto).forEach(function (k) { if (!pris[auto[k]]) { res[k] = auto[k]; pris[auto[k]] = true; } });
+    return res;
+  }
+
+  /* ---------- Lecture des réponses des API publiques (partagée par le navigateur et n8n) ---------- */
+  function lireEntreprise(json, s) {
+    s = siren(s); var r = ((json && json.results) || []).filter(function (x) { return x.siren === s; })[0]; if (!r) return null;
+    var sg = r.siege || {};
+    return { siren: r.siren, nom: r.nom_complet || r.nom_raison_sociale || '', etat: r.etat_administratif === 'C' ? 'fermée' : 'active',
+      date_creation: date(r.date_creation), date_fermeture: date(r.date_fermeture), adresse: sg.adresse || '', code_postal: sg.code_postal || '',
+      naf: r.activite_principale || '', categorie: r.categorie_entreprise || '', effectif: r.tranche_effectif_salarie || '', nature_juridique: r.nature_juridique || '' };
+  }
+  function lireBodacc(json) {
+    return ((json && json.results) || []).map(function (r) {
+      var jug = {}; try { jug = r.jugement ? (typeof r.jugement === 'string' ? JSON.parse(r.jugement) : r.jugement) : {}; } catch (e) { jug = {}; }
+      var nature = jug.nature || jug.famille || r.typeavis_lib || '';
+      var a = { date: date(r.dateparution), date_jugement: date(jug.date), famille: r.familleavis || '', famille_libelle: r.familleavis_lib || '', nature: nature,
+        tribunal: r.tribunal || '', nom: r.commercant || '', url: r.url_complete || '', procedure_collective: r.familleavis === 'collective' };
+      var j = r.familleavis === 'collective' ? analyserJugement(jug.famille, jug.nature) : { procedure: null, type_jugement: null, procedure_en_cours: false };
+      Object.keys(j).forEach(function (k) { a[k] = j[k]; });
+      return a;
+    }).sort(function (x, y) { return (y.date ? +y.date : 0) - (x.date ? +x.date : 0); });
+  }
+  function urlEntreprise(s) { return 'https://recherche-entreprises.api.gouv.fr/search?q=' + siren(s) + '&per_page=1'; }
+  function urlBodacc(s, depuis) {
+    s = siren(s); depuis = date(depuis);
+    var where = 'registre like "' + s + '"' + (depuis ? " and dateparution >= date'" + depuis.getFullYear() + '-' + (depuis.getMonth() < 9 ? '0' : '') + (depuis.getMonth() + 1) + '-' + (depuis.getDate() < 10 ? '0' : '') + depuis.getDate() + "'" : '');
+    return 'https://bodacc-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/annonces-commerciales/records?where=' + encodeURIComponent(where) + '&order_by=dateparution%20desc&limit=50';
+  }
+
+  /* Encodage base64 UTF-8 sans dépendance (pièces jointes n8n). */
+  function base64(txt) {
+    var bytes = unescape(encodeURIComponent(String(txt))), tab = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/', out = '';
+    for (var i = 0; i < bytes.length; i += 3) {
+      var a = bytes.charCodeAt(i), b = bytes.charCodeAt(i + 1), c = bytes.charCodeAt(i + 2);
+      var t = (a << 16) | ((b || 0) << 8) | (c || 0);
+      out += tab[(t >> 18) & 63] + tab[(t >> 12) & 63] + (i + 1 < bytes.length ? tab[(t >> 6) & 63] : '=') + (i + 2 < bytes.length ? tab[t & 63] : '=');
+    }
+    return out;
+  }
+
   /* API simulée pour le mode démonstration et les tests automatiques (aucun appel réseau). */
   var apiDemo = {
     entreprise: function (s) {
@@ -303,7 +382,7 @@ var OutilCore = (function () {
   };
 
   return {
-    apiDemo: apiDemo, analyserJugement: analyserJugement, ajouterMois: ajouterMois, normaliser: normaliser, num: num, date: date, siren: siren, iban: iban, texte: texte, convertir: convertir,
+    apiDemo: apiDemo, analyserJugement: analyserJugement, ajouterMois: ajouterMois, SOURCES: SOURCES, sourcesNecessaires: sourcesNecessaires, indexer: indexer, tablePennylane: tablePennylane, correspondancePennylane: correspondancePennylane, lireEntreprise: lireEntreprise, lireBodacc: lireBodacc, urlEntreprise: urlEntreprise, urlBodacc: urlBodacc, base64: base64, normaliser: normaliser, num: num, date: date, siren: siren, iban: iban, texte: texte, convertir: convertir,
     sirenValide: sirenValide, ibanValide: ibanValide, tvaIntracomFR: tvaIntracomFR,
     formatEuro: formatEuro, formatNombre: formatNombre, formatDate: formatDate,
     joursEntre: joursEntre, aujourdhui: aujourdhui, creerOutils: creerOutils,
