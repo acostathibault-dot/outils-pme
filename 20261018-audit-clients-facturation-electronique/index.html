@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audit clients facturation électronique</title>
+<meta name="description" content="Détectez les SIREN manquants, invalides ou fermés et préparez votre base clients à la facturation électronique.">
+<meta property="og:title" content="Audit clients facturation électronique">
+<meta property="og:description" content="Détectez les SIREN manquants, invalides ou fermés et préparez votre base clients à la facturation électronique. Gratuit, 100 % local : vos données ne quittent pas votre ordinateur.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_runtime/app.css?v=20261018">
+</head>
+<body>
+<div id="app"></div>
+<noscript>Cet outil nécessite JavaScript.</noscript>
+<script src="../_runtime/xlsx.full.min.js"></script>
+<script>window.OUTIL = {"titre":"Audit clients facturation électronique","slug":"20261018-audit-clients-facturation-electronique","promesse":"Détectez les SIREN manquants, invalides ou fermés et préparez votre base clients à la facturation électronique.","gain_temps":"Environ 3 h par trimestre (estimation)","etapes":["Analyse la liste des clients exportée depuis Pennylane","Interroge l'API Recherche d'entreprises pour vérifier le SIREN et l'état d'activité (actif / fermé)","Contrôle la présence des mentions obligatoires (adresse, code postal, N° TVA)","Génère le bilan de conformité et la liste exacte des fiches à corriger dans Pennylane"],"entrees":[{"id":"base_clients","libelle":"Export de la base clients","obligatoire":true,"description":"Dans Pennylane, depuis la liste de vos clients, exportez le fichier complet des clients (format CSV ou Excel).","source":"clients","champs":[{"cle":"nom","libelle":"Nom du client","type":"texte","motscles":["Nom","Client","Raison sociale","Nom du client","Tiers","Customer name"],"obligatoire":true,"colonne_pennylane":"Nom"},{"cle":"siren","libelle":"SIREN","type":"siren","motscles":["SIREN","Siren","N° SIREN","Numéro SIREN","Siren client","Registration number"],"obligatoire":false,"colonne_pennylane":"SIREN"},{"cle":"tva","libelle":"N° TVA Intracommunautaire","type":"texte","motscles":["N° TVA","TVA","Numéro de TVA","TVA Intracommunautaire","VAT number","N° TVA client"],"obligatoire":false,"colonne_pennylane":"N° TVA"},{"cle":"adresse","libelle":"Adresse","type":"texte","motscles":["Adresse","Voie","Adresse client","Street","Adresse ligne 1"],"obligatoire":false,"colonne_pennylane":"Adresse"},{"cle":"code_postal","libelle":"Code postal","type":"texte","motscles":["Code postal","CP","Zip code","Postal code","Code postal client"],"obligatoire":false,"colonne_pennylane":"Code postal"},{"cle":"ville","libelle":"Ville","type":"texte","motscles":["Ville","City","Commune","Ville client"],"obligatoire":false,"colonne_pennylane":"Ville"},{"cle":"pays","libelle":"Pays","type":"texte","motscles":["Pays","Country","Pays client","Code pays"],"obligatoire":false,"colonne_pennylane":"Pays"}],"description_html":"Dans Pennylane, depuis la liste de vos clients, exportez le fichier complet des clients (format CSV ou Excel)."}],"parametres":[{"cle":"ignorer_particuliers","libelle":"Ignorer les particuliers (B2C)","type":"booleen","defaut":"true","aide":"Ne pas signaler l'absence de SIREN pour les personnes physiques.","options":[],"colonnes":[]},{"cle":"exiger_tva","libelle":"Exiger le N° de TVA pour les clients FR","type":"booleen","defaut":"false","aide":"Si activé, l'absence de N° de TVA intracommunautaire sera signalée comme une anomalie.","options":[],"colonnes":[]},{"cle":"seuil_alerte_taux_erreur","libelle":"Seuil d'alerte taux de non-conformité","type":"pourcentage","defaut":"10","aide":"Alerte globale si le pourcentage de fiches non conformes dépasse ce seuil.","options":[],"colonnes":[]}],"api":["entreprises"],"resultats":"KPIs : Taux de conformité global (%), Nombre total de clients analysés, Clients non conformes (SIREN manquant, invalide ou entreprise fermée), Adresses incomplètes. Alertes : Rouge si entreprise radiée/fermée au Registre du Commerce ou SIREN invalide ; Orange si SIREN manquant sur un client B2B ; Jaune si adresse ou code postal absent. Tableau : Liste détaillée par client avec statut INSEE (Actif / Fermé), validité du SIREN, complétude de l'adresse et action corrective recommandée. Graphique : Répartition du portefeuille clients (Conforme, À corriger, Entreprise fermée, Incomplet).","cas_concret":"Une PME de négoce compte 150 clients professionnels dans Pennylane. L'audit révèle que 14 clients n'ont aucun SIREN renseigné, 3 clients ont un SIREN correspondant à une société fermée/liquidée (représentant 12 500 € d'encours), et 8 clients ont un code postal ou une ville manquante. Taux de conformité initial : 83,3 %. Après correction des 25 fiches signalées, le taux atteint 100 % avant le passage à la facturation électronique.","limites":"L'API Recherche d'entreprises vérifie uniquement les entités immatriculées en France (SIREN à 9 chiffres). Les clients étrangers ne sont pas contrôlés via l'INSEE.","frequence":"mensuelle","declenchement":"chaque mois, l'outil analyse votre base clients et ne vous alerte que si un client B2B a un SIREN invalide ou une entreprise fermée.","automatisable":true,"signature":"Thibault Acosta-Mendez","lien_profil":"www.linkedin.com/in/thibaultacosta-mendez","repo_url":"https://github.com/acostathibault-dot/outils-pme/tree/main/20261018-audit-clients-facturation-electronique","guide_html":"\u003ch2>Guide d'utilisation : Audit clients facturation électronique\u003c/h2>\n\u003cp>Bienvenue dans votre guide d'utilisation. Cette mini-application gratuite vous permet de détecter en quelques clics les SIREN manquants, invalides ou fermés dans votre base clients, afin de préparer sereinement votre entreprise à la facturation électronique. Vous gagnez ainsi environ 3 heures de travail par trimestre.\u003c/p>\n\u003ch3>Exporter vos données\u003c/h3>\n\u003cp>Pour réaliser l'audit, vous devez exporter votre fichier clients depuis Pennylane.\u003c/p>\n\u003col>\u003cli>Connectez-vous à votre compte Pennylane.\u003c/li>\u003cli>Rendez-vous dans la liste de vos clients (l'intitulé exact du menu peut varier selon votre version de Pennylane).\u003c/li>\u003cli>Utilisez le bouton d'export pour télécharger le fichier complet de vos clients.\u003c/li>\u003cli>Choisissez d'exporter le fichier au format \u003cstrong>CSV\u003c/strong> ou \u003cstrong>Excel\u003c/strong>. \u003c/li>\u003c/ol>\n\u003cp>*Note : Les champs attendus dans votre fichier sont : Nom du client, SIREN, N° TVA Intracommunautaire, Adresse, Code postal, Ville et Pays.*\u003c/p>\n\u003ch3>Utiliser l'outil\u003c/h3>\n\u003cp>L'utilisation de l'application est simple et rapide :\u003c/p>\n\u003col>\u003cli>Cliquez sur le bouton \u003cstrong>Essayer avec des données d'exemple\u003c/strong> si vous souhaitez tester l'outil avant d'importer vos propres données.\u003c/li>\u003cli>Déposez votre fichier exporté depuis Pennylane dans la zone dédiée.\u003c/li>\u003cli>Vérifiez la correspondance des colonnes, qui est détectée automatiquement par l'application.\u003c/li>\u003cli>Ajustez vos réglages si nécessaire : * Ignorer les particuliers (B2C) * Exiger le N° de TVA pour les clients FR * Définir le seuil d'alerte du taux de non-conformité\u003c/li>\u003cli>Cliquez sur \u003cstrong>Lancer l'analyse\u003c/strong>.\u003c/li>\u003cli>Consultez les résultats et cliquez sur \u003cstrong>Exporter en Excel\u003c/strong> pour récupérer la liste exacte des fiches à corriger.\u003c/li>\u003c/ol>\n\u003ch3>Lire les résultats\u003c/h3>\n\u003cp>L'application vous offre une vision claire et immédiate de la conformité de votre base clients :\u003c/p>\n\u003cul>\u003cli>\u003cstrong>Les indicateurs (KPIs) :\u003c/strong>\u003c/li>\u003cli>\u003cstrong>Taux de conformité global (%) :\u003c/strong> Indique le pourcentage de clients prêts pour la facturation électronique (par exemple, 75 % sur les données d'exemple).\u003c/li>\u003cli>\u003cstrong>Nombre total de clients analysés :\u003c/strong> Le volume total de fiches traitées.\u003c/li>\u003cli>\u003cstrong>Clients non conformes :\u003c/strong> Le nombre de clients ayant un SIREN manquant, invalide ou une entreprise fermée.\u003c/li>\u003cli>\u003cstrong>Adresses incomplètes :\u003c/strong> Le nombre de fiches où il manque des informations de domiciliation.\u003c/li>\u003c/ul>\n\u003cul>\u003cli>\u003cstrong>Les alertes :\u003c/strong>\u003c/li>\u003cli>\u003cstrong>Rouge :\u003c/strong> S'affiche si une entreprise est radiée ou fermée au Registre du Commerce, ou si le SIREN est invalide. Action : Mettre à jour la fiche ou cesser la facturation.\u003c/li>\u003cli>\u003cstrong>Orange :\u003c/strong> S'affiche si le SIREN est manquant sur un client B2B. Action : Demander le numéro SIREN au client.\u003c/li>\u003cli>\u003cstrong>Jaune :\u003c/strong> S'affiche si l'adresse ou le code postal est absent. Action : Compléter l'adresse postale.\u003c/li>\u003c/ul>\n\u003cul>\u003cli>\u003cstrong>Le tableau détaillé :\u003c/strong> \u003c/li>\u003c/ul>\n\u003cp>Il présente ligne par ligne chaque client avec son statut INSEE (Actif ou Fermé), la validité de son SIREN, la complétude de l'adresse et l'action corrective recommandée à mener directement dans Pennylane.\u003c/p>\n\u003cul>\u003cli>\u003cstrong>Le graphique de répartition :\u003c/strong> \u003c/li>\u003c/ul>\n\u003cp>Il visualise la répartition de votre portefeuille clients selon quatre catégories : Conforme, À corriger, Entreprise fermée et Incomplet.\u003c/p>\n\u003cul>\u003cli>\u003cstrong>Cas concret d'utilisation :\u003c/strong> \u003c/li>\u003c/ul>\n\u003cp>Pour une PME de négoce de 150 clients professionnels, l'audit peut révéler 14 SIREN manquants, 3 sociétés fermées/liquidées (représentant 12 500 € d'encours) et 8 adresses incomplètes. Le taux de conformité initial passe par exemple de 83,3 % à 100 % après la correction des 25 fiches signalées.\u003c/p>\n\u003ch3>Confidentialité\u003c/h3>\n\u003cp>Votre sécurité et la protection de vos données sont assurées :\u003c/p>\n\u003cul>\u003cli>Vos fichiers sont lus directement par votre navigateur Internet et \u003cstrong>rien n'est envoyé sur un serveur tiers\u003c/strong>.\u003c/li>\u003cli>Vos réglages personnalisés sont mémorisés uniquement sur votre propre ordinateur.\u003c/li>\u003cli>Concernant les vérifications en ligne, \u003cstrong>seuls les numéros SIREN\u003c/strong> (qui sont des données publiques) sont envoyés aux API officielles de l'État (API Recherche d'entreprises) pour vérifier leur validité et l'état d'activité.\u003c/li>\u003c/ul>\n\u003ch3>Questions fréquentes\u003c/h3>\n\u003cp>\u003cstrong>1. Puis-je utiliser cet outil avec un autre logiciel que Pennylane ?\u003c/strong> L'outil est optimisé pour les exports de Pennylane. Si vous utilisez un autre logiciel, vous devez vous assurer que votre fichier Excel ou CSV contient les colonnes obligatoires correspondantes (Nom, SIREN, TVA, Adresse, Code postal, Ville, Pays).\u003c/p>\n\u003cp>\u003cstrong>2. Que se passe-t-il si mon client est une entreprise étrangère ?\u003c/strong> L'API Recherche d'entreprises vérifie uniquement les entités immatriculées en France (possédant un SIREN à 9 chiffres). Les clients étrangers ne sont donc pas contrôlés via l'INSEE par cet outil.\u003c/p>\n\u003cp>\u003cstrong>3. Comment fonctionne l'intégration automatique dans n8n ?\u003c/strong> Si vous utilisez la version automatique, n8n lit votre base clients dans Pennylane chaque mois. L'outil vous envoie un e-mail uniquement s'il y a du nouveau, c'est-à-dire si un client B2B a un SIREN invalide ou si une entreprise est fermée, afin de vous faire gagner du temps.\u003c/p>","automatisation":"automatisation-n8n.json"};</script>
+<script>
+function genererExemple() {
+  return {
+    base_clients: [
+      { nom: 'ACME Solutions SAS', siren: '812345684', tva: 'FR12812345684', adresse: '12 rue de la Paix', code_postal: '75002', ville: 'Paris', pays: 'France' },
+      { nom: 'Boulangerie Moderne SARL', siren: '812345726', tva: 'FR34812345726', adresse: '5 avenue Victor Hugo', code_postal: '69006', ville: 'Lyon', pays: 'France' },
+      { nom: 'Tech & Co Distribution', siren: '812345775', tva: '', adresse: '14 boulevard Haussmann', code_postal: '75009', ville: 'Paris', pays: 'France' },
+      { nom: 'Menuiserie Dubois EURL', siren: '812345817', tva: 'FR56812345817', adresse: 'Zone Industrielle Nord', code_postal: '44000', ville: 'Nantes', pays: 'France' },
+      { nom: 'Garage Central SA', siren: '812345866', tva: 'FR78812345866', adresse: '', code_postal: '', ville: 'Marseille', pays: 'France' },
+      { nom: 'Cabinet Conseil Alpha', siren: '812345908', tva: 'FR90812345908', adresse: '8 rue Royale', code_postal: '59000', ville: 'Lille', pays: 'France' },
+      { nom: 'Imprimerie Provençale', siren: '812345957', tva: 'FR11812345957', adresse: '3 cours Mirabeau', code_postal: '13100', ville: 'Aix-en-Provence', pays: 'France' },
+      { nom: 'Bâti Rénov Pro', siren: '812345999', tva: '', adresse: '25 route de Toulouse', code_postal: '33000', ville: 'Bordeaux', pays: 'France' },
+      { nom: 'Logistique Ouest SAS', siren: '812346013', tva: 'FR22812346013', adresse: '10 allée des Chênes', code_postal: '35000', ville: 'Rennes', pays: 'France' },
+      { nom: 'Pharmacie de la Mairie', siren: '812346062', tva: 'FR33812346062', adresse: '2 place Centrale', code_postal: '67000', ville: 'Strasbourg', pays: 'France' },
+      { nom: 'Ancienne Ferronnerie SAS', siren: '823456710', tva: 'FR44823456710', adresse: '18 chemin Vert', code_postal: '31000', ville: 'Toulouse', pays: 'France' },
+      { nom: 'Transport Express Sud', siren: '823456850', tva: 'FR55823456850', adresse: 'ZAC des Vignes', code_postal: '34000', ville: 'Montpellier', pays: 'France' },
+      { nom: 'Consultant Sans Siret', siren: '', tva: '', adresse: '45 rue de la République', code_postal: '69002', ville: 'Lyon', pays: 'France' },
+      { nom: 'Dupont Jean-Marc', siren: '', tva: '', adresse: '12 rue des Fleurs', code_postal: '75015', ville: 'Paris', pays: 'France' },
+      { nom: 'Société Fictive Invalide', siren: '123456789', tva: 'FR99123456789', adresse: '1 rue Imaginaire', code_postal: '99999', ville: 'Nullepart', pays: 'France' },
+      { nom: 'Global Trading BV', siren: '', tva: 'NL888888888B01', adresse: 'Keizersgracht 421', code_postal: '1016 EK', ville: 'Amsterdam', pays: 'Pays-Bas' }
+    ]
+  };
+}
+
+async function analyser(donnees, params, outils) {
+  var clients = donnees.base_clients || [];
+
+  if (clients.length === 0) {
+    return {
+      kpis: [
+        { libelle: 'Taux de conformité', valeur: 0, format: 'pourcent', niveau: 'info', detail: 'Aucun client' },
+        { libelle: 'Clients analysés', valeur: 0, format: 'nombre', niveau: 'info' },
+        { libelle: 'Fiches non conformes', valeur: 0, format: 'nombre', niveau: 'info' },
+        { libelle: 'Adresses incomplètes', valeur: 0, format: 'nombre', niveau: 'info' }
+      ],
+      alertes: [{
+        niveau: 'info',
+        titre: 'Base clients vide',
+        detail: 'Veuillez importer le fichier exporté depuis Pennylane pour lancer l\'audit de conformité à la facturation électronique.'
+      }],
+      tableaux: [{
+        id: 'conformite',
+        titre: 'Diagnostic des fiches clients',
+        description: 'Détail de la conformité par client pour la facturation électronique.',
+        colonnes: [
+          { cle: 'nom', libelle: 'Nom client', format: 'texte' },
+          { cle: 'pays', libelle: 'Pays', format: 'texte' },
+          { cle: 'siren', libelle: 'SIREN', format: 'texte' },
+          { cle: 'statut_insee', libelle: 'Statut INSEE', format: 'texte' },
+          { cle: 'adresse_ok', libelle: 'Adresse complète', format: 'texte' },
+          { cle: 'tva', libelle: 'N° TVA', format: 'texte' },
+          { cle: 'statut_audit', libelle: 'Statut conformité', format: 'niveau' },
+          { cle: 'action', libelle: 'Action corrective', format: 'texte' }
+        ],
+        lignes: []
+      }],
+      graphiques: []
+    };
+  }
+
+  var ignorerParticuliers = params.ignorer_particuliers !== false;
+  var exigerTva = params.exiger_tva === true;
+  var seuilAlerte = params.seuil_alerte_taux_erreur != null ? outils.num(params.seuil_alerte_taux_erreur) : 10;
+
+  function estParticulier(nom) {
+    if (!nom) return false;
+    var n = outils.normaliser(nom);
+    var motsPro = ['sas', 'sarl', 'eurl', 'sa', 'sci', 'snc', 'gie', 'assoc', 'association', 'fondation', 'ets', 'ets.', 'ets ', 'ste', 'ste.', 'groupe', 'cabinet', 'boulangerie', 'menuiserie', 'garage', 'transport', 'imprimerie', 'solutions', 'consulting', 'tech', 'trading', 'services', 'co'];
+    var parts = n.split(/[\s,.-]+/);
+    for (var i = 0; i < parts.length; i++) {
+      if (motsPro.indexOf(parts[i]) !== -1) return false;
+    }
+    // Heuristique prénom / nom : deux mots simples sans terme société
+    return parts.length >= 2 && parts.length <= 3;
+  }
+
+  // Collecte et dédoublonnage des SIREN valides pour appel API
+  var sirensUniques = [];
+  var sirensMap = {};
+
+  clients.forEach(function (c) {
+    var s = (c.siren || '').toString().trim().replace(/\s+/g, '');
+    if (s && outils.sirenValide(s)) {
+      if (!sirensMap[s]) {
+        sirensMap[s] = true;
+        sirensUniques.push(s);
+      }
+    }
+  });
+
+  var donneesInsee = {};
+  var maxSiren = Math.min(sirensUniques.length, 300);
+
+  for (var i = 0; i < maxSiren; i++) {
+    var sirenCourant = sirensUniques[i];
+    outils.progression('Vérification INSEE : ' + (i + 1) + ' / ' + maxSiren, (i + 1) / maxSiren);
+    try {
+      var res = await outils.api.entreprise(sirenCourant);
+      donneesInsee[sirenCourant] = res;
+    } catch (e) {
+      donneesInsee[sirenCourant] = null;
+    }
+  }
+
+  var fichesTraitees = [];
+  var nbNonConformes = 0;
+  var nbAdressesIncompletes = 0;
+  var nbSirenManquants = 0;
+  var nbSirenInvalides = 0;
+  var nbFermees = 0;
+  var nbTvaManquantes = 0;
+
+  clients.forEach(function (c) {
+    var nom = (c.nom || '').trim();
+    var sirenBrut = (c.siren || '').toString().trim().replace(/\s+/g, '');
+    var pays = (c.pays || '').trim();
+    var paysNorm = outils.normaliser(pays);
+    var estFrance = paysNorm === '' || paysNorm === 'france' || paysNorm === 'fr';
+
+    var adresse = (c.adresse || '').trim();
+    var cp = (c.code_postal || '').trim();
+    var ville = (c.ville || '').trim();
+    var tva = (c.tva || '').trim();
+
+    var adresseComplete = (adresse !== '' && cp !== '' && ville !== '');
+    if (!adresseComplete) {
+      nbAdressesIncompletes++;
+    }
+
+    var estB2C = estParticulier(nom);
+    var anomalieNiveau = 'ok'; // ok, alerte, danger
+    var statutAudit = 'Conforme';
+    var action = 'Aucune';
+    var statutInsee = 'Non contrôlé';
+
+    if (!estFrance) {
+      statutInsee = 'Hors France';
+      if (!adresseComplete) {
+        anomalieNiveau = 'alerte';
+        statutAudit = 'Adresse incomplète';
+        action = 'Compléter adresse, code postal ou ville dans Pennylane';
+      }
+    } else {
+      // Client en France
+      if (sirenBrut === '') {
+        if (ignorerParticuliers && estB2C) {
+          statutInsee = 'Particulier (B2C)';
+          if (!adresseComplete) {
+            anomalieNiveau = 'alerte';
+            statutAudit = 'Adresse incomplète';
+            action = 'Compléter l\'adresse de facturation';
+          }
+        } else {
+          nbSirenManquants++;
+          anomalieNiveau = 'alerte';
+          statutAudit = 'SIREN manquant';
+          action = 'Renseigner le SIREN 9 chiffres dans la fiche Pennylane';
+          statutInsee = 'Non renseigné';
+        }
+      } else if (!outils.sirenValide(sirenBrut)) {
+        nbSirenInvalides++;
+        anomalieNiveau = 'danger';
+        statutAudit = 'SIREN invalide';
+        action = 'Corriger le numéro SIREN (clé de Luhn incorrecte)';
+        statutInsee = 'Invalide';
+      } else {
+        // SIREN valide format
+        var info = donneesInsee[sirenBrut];
+        if (info) {
+          statutInsee = info.etat === 'fermée' ? 'Fermée' : 'Active';
+          if (info.etat === 'fermée') {
+            nbFermees++;
+            anomalieNiveau = 'danger';
+            statutAudit = 'Entreprise fermée';
+            action = 'Société radiée/fermée au Registre : vérifier la solvabilité et bloquer les commandes';
+          }
+        } else {
+          statutInsee = 'Inconnu INSEE';
+        }
+
+        if (anomalieNiveau === 'ok' && !adresseComplete) {
+          anomalieNiveau = 'alerte';
+          statutAudit = 'Adresse incomplète';
+          action = 'Compléter l\'adresse ou la commune dans Pennylane';
+        }
+
+        if (anomalieNiveau === 'ok' && exigerTva && !tva) {
+          nbTvaManquantes++;
+          anomalieNiveau = 'alerte';
+          statutAudit = 'N° TVA manquant';
+          action = 'Renseigner le numéro de TVA intracommunautaire';
+        }
+      }
+    }
+
+    if (anomalieNiveau !== 'ok') {
+      nbNonConformes++;
+    }
+
+    var _niv = anomalieNiveau === 'danger' ? 'danger' : (anomalieNiveau === 'alerte' ? 'alerte' : null);
+
+    fichesTraitees.push({
+      nom: nom || '(Sans nom)',
+      pays: pays || 'France',
+      siren: sirenBrut || '-',
+      statut_insee: statutInsee,
+      adresse_ok: adresseComplete ? 'Complète' : 'Incomplète',
+      tva: tva || '-',
+      statut_audit: statutAudit,
+      action: action,
+      _niveau: _niv,
+      _severite: anomalieNiveau === 'danger' ? 2 : (anomalieNiveau === 'alerte' ? 1 : 0)
+    });
+  });
+
+  // Tri : danger d'abord, puis alerte, puis conforme
+  fichesTraitees = outils.trier(fichesTraitees, '_severite', true);
+
+  var totalClients = clients.length;
+  var nbConformes = totalClients - nbNonConformes;
+  var tauxConformite = outils.pourcent(nbConformes, totalClients);
+  var tauxErreur = outils.pourcent(nbNonConformes, totalClients);
+
+  var kpis = [
+    {
+      libelle: 'Taux de conformité',
+      valeur: tauxConformite,
+      format: 'pourcent',
+      niveau: tauxErreur > seuilAlerte ? 'danger' : (tauxErreur > 0 ? 'alerte' : 'ok'),
+      detail: nbConformes + ' sur ' + totalClients + ' clients conformes'
+    },
+    {
+      libelle: 'Clients analysés',
+      valeur: totalClients,
+      format: 'nombre',
+      niveau: 'info',
+      detail: 'Portefeuille Pennylane'
+    },
+    {
+      libelle: 'Fiches à corriger',
+      valeur: nbNonConformes,
+      format: 'nombre',
+      niveau: nbNonConformes > 0 ? 'danger' : 'ok',
+      detail: nbFermees + ' fermées, ' + (nbSirenManquants + nbSirenInvalides) + ' SIREN invalides/absents'
+    },
+    {
+      libelle: 'Adresses incomplètes',
+      valeur: nbAdressesIncompletes,
+      format: 'nombre',
+      niveau: nbAdressesIncompletes > 0 ? 'alerte' : 'ok',
+      detail: 'Voie, code postal ou ville manquant'
+    }
+  ];
+
+  var alertes = [];
+
+  if (sirensUniques.length > 300) {
+    alertes.push({
+      niveau: 'info',
+      titre: 'Plafond API atteint',
+      detail: 'Seuls les 300 premiers SIREN distincts ont été vérifiés auprès de l\'INSEE. Traitez la base par tranches si nécessaire.'
+    });
+  }
+
+  if (nbFermees > 0) {
+    alertes.push({
+      niveau: 'danger',
+      titre: nbFermees + ' entreprise(s) radiée(s) ou fermée(s)',
+      detail: nbFermees + ' client(s) ont un SIREN correspondant à une entité fermée au Registre INSEE. Risque élevé d\'impayé et facturation impossible. Bloquez les livraisons et mettez à jour la fiche.'
+    });
+  }
+
+  if (nbSirenInvalides > 0) {
+    alertes.push({
+      niveau: 'danger',
+      titre: nbSirenInvalides + ' SIREN invalide(s)',
+      detail: 'La clé de contrôle de ces SIREN est incorrecte. La plateforme publique (PPF / PDP) rejettera immédiatement toute facture émise vers ces tiers.'
+    });
+  }
+
+  if (nbSirenManquants > 0) {
+    alertes.push({
+      niveau: 'alerte',
+      titre: nbSirenManquants + ' client(s) B2B sans SIREN',
+      detail: 'En facturation électronique obligatoire, le SIREN de l\'acheteur est la clé de routage indispensable. Renseignez-le directement dans Pennylane.'
+    });
+  }
+
+  if (tauxErreur > seuilAlerte && nbFermees === 0 && nbSirenInvalides === 0) {
+    alertes.push({
+      niveau: 'alerte',
+      titre: 'Taux de non-conformité élevé (' + outils.arrondi(tauxErreur, 1) + ' %)',
+      detail: 'Votre seuil d\'alerte de ' + seuilAlerte + ' % est dépassé. ' + nbNonConformes + ' fiches clients doivent être assainies avant l\'entrée en vigueur de l\'obligation.'
+    });
+  }
+
+  if (nbAdressesIncompletes > 0 && alertes.length < 5) {
+    alertes.push({
+      niveau: 'alerte',
+      titre: nbAdressesIncompletes + ' adresse(s) incomplète(s)',
+      detail: 'L\'adresse de facturation complète (voie, code postal, ville) est une mention obligatoire stricte sur le flux électronique de facturation.'
+    });
+  }
+
+  var tableauLignes = fichesTraitees.map(function (f) {
+    return {
+      nom: f.nom,
+      pays: f.pays,
+      siren: f.siren,
+      statut_insee: f.statut_insee,
+      adresse_ok: f.adresse_ok,
+      tva: f.tva,
+      statut_audit: f.statut_audit,
+      action: f.action,
+      _niveau: f._niveau
+    };
+  });
+
+  // Données pour le graphique
+  var statsAudit = outils.grouper(fichesTraitees, 'statut_audit');
+  var barresGraphique = Object.keys(statsAudit).map(function (statut) {
+    return {
+      libelle: statut,
+      valeur: statsAudit[statut].length
+    };
+  });
+  barresGraphique = outils.trier(barresGraphique, 'valeur', true);
+
+  return {
+    kpis: kpis,
+    alertes: alertes,
+    tableaux: [
+      {
+        id: 'conformite',
+        titre: 'Diagnostic de conformité des clients Pennylane',
+        description: 'Liste des clients classée par criticité : entreprises fermées et SIREN invalides en priorité.',
+        colonnes: [
+          { cle: 'nom', libelle: 'Nom client', format: 'texte' },
+          { cle: 'pays', libelle: 'Pays', format: 'texte' },
+          { cle: 'siren', libelle: 'SIREN', format: 'texte' },
+          { cle: 'statut_insee', libelle: 'Statut INSEE', format: 'texte' },
+          { cle: 'adresse_ok', libelle: 'Adresse complète', format: 'texte' },
+          { cle: 'tva', libelle: 'N° TVA', format: 'texte' },
+          { cle: 'statut_audit', libelle: 'Statut conformité', format: 'niveau' },
+          { cle: 'action', libelle: 'Action corrective', format: 'texte' }
+        ],
+        lignes: tableauLignes
+      }
+    ],
+    graphiques: [
+      {
+        titre: 'Répartition du portefeuille par conformité',
+        format: 'nombre',
+        barres: barresGraphique
+      }
+    ]
+  };
+}
+</script>
+<script src="../_runtime/app.js?v=20261018"></script>
+</body>
+</html>
